@@ -1,0 +1,13 @@
+/* Carno Wallet — Admin Styles */
+.wrap .card {
+    padding: 20px;
+}
+
+.wrap .card h2 {
+    margin-top: 0;
+}
+
+.wrap .card ul {
+    list-style: disc;
+    padding-right: 20px;
+}
