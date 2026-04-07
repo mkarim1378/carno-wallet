@@ -1,13 +1,60 @@
 /* Carno Wallet — Admin Styles */
-.wrap .card {
+
+.carno-wallet-card {
     padding: 20px;
 }
 
-.wrap .card h2 {
+.carno-wallet-card h2 {
     margin-top: 0;
 }
 
-.wrap .card ul {
-    list-style: disc;
-    padding-right: 20px;
+/* جدول نمونه فرمت فایل */
+.carno-file-format-box {
+    background: #f6f7f7;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 14px 16px;
+    margin-bottom: 4px;
+}
+
+.carno-sample-table {
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 13px;
+}
+
+.carno-sample-table th,
+.carno-sample-table td {
+    border: 1px solid #c3c4c7;
+    padding: 6px 16px;
+    text-align: center;
+}
+
+.carno-sample-table thead th {
+    background: #2271b1;
+    color: #fff;
+    font-weight: 600;
+}
+
+.carno-sample-table .header-row td {
+    background: #e8f0fe;
+    font-weight: 600;
+}
+
+.carno-sample-table tbody tr:hover td {
+    background: #f0f6fc;
+}
+
+/* هشدار صفر اول */
+.carno-notice-zero {
+    margin: 10px 0 0;
+    font-size: 12px;
+    color: #b32d2e;
+}
+
+.carno-notice-zero strong {
+    font-family: monospace;
+    background: #fce9e9;
+    padding: 1px 4px;
+    border-radius: 3px;
 }

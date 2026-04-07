@@ -3,8 +3,18 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * پنل مدیریت: آپلود فایل، جستجو و ویرایش موجودی
+ *
+ * ساختار مورد انتظار فایل اکسل:
+ *   ردیف ۱ (هدر): username | amount
+ *   ردیف ۲ به بعد: داده‌ها
+ *
+ * مهم: ستون username باید در اکسل به فرمت «Text» تنظیم شود تا صفر اول حفظ گردد.
  */
 class Carno_Wallet_Admin {
+
+    // سرستون‌های مورد انتظار در فایل اکسل
+    const COL_USERNAME = 'username';
+    const COL_AMOUNT   = 'amount';
 
     private static $instance = null;
 
@@ -18,10 +28,8 @@ class Carno_Wallet_Admin {
     private function __construct() {
         add_action('admin_menu', [$this, 'add_admin_menu']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']);
-
-        // باگ‌فیکس: هر دو action باید register شوند
         add_action('admin_post_upload_wallet_excel', [$this, 'handle_excel_upload']);
-        add_action('admin_post_update_single_wallet', [$this, 'handle_single_update']); // قبلاً missing بود
+        add_action('admin_post_update_single_wallet', [$this, 'handle_single_update']);
     }
 
     public function add_admin_menu() {
@@ -41,6 +49,8 @@ class Carno_Wallet_Admin {
         wp_enqueue_style('carno-wallet-admin', CARNO_WALLET_URL . 'assets/admin-style.css', [], CARNO_WALLET_VERSION);
     }
 
+    // ─── صفحه اصلی ادمین ───────────────────────────────────────
+
     public function render_admin_page() {
         ?>
         <div class="wrap">
@@ -48,23 +58,48 @@ class Carno_Wallet_Admin {
 
             <?php $this->render_notices(); ?>
 
-            <div class="card" style="max-width: 600px; margin-top: 20px;">
-                <h2>آپلود فایل اکسل / CSV</h2>
-                <p>فایل باید دو ستون داشته باشد:</p>
-                <ul>
-                    <li><strong>ستون A:</strong> شماره موبایل (نام کاربری)</li>
-                    <li><strong>ستون B:</strong> مبلغ موجودی (به تومان)</li>
-                </ul>
+            <div class="card carno-wallet-card" style="max-width: 680px; margin-top: 20px;">
+                <h2>آپلود فایل اکسل</h2>
 
-                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data">
+                <div class="carno-file-format-box">
+                    <p><strong>فرمت مورد انتظار فایل <code>.xlsx</code>:</strong></p>
+                    <table class="carno-sample-table">
+                        <thead>
+                            <tr>
+                                <th>ستون A</th>
+                                <th>ستون B</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="header-row">
+                                <td><code><?php echo esc_html(self::COL_USERNAME); ?></code></td>
+                                <td><code><?php echo esc_html(self::COL_AMOUNT); ?></code></td>
+                            </tr>
+                            <tr>
+                                <td>09123456789</td>
+                                <td>150000</td>
+                            </tr>
+                            <tr>
+                                <td>09987654321</td>
+                                <td>80000</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="carno-notice-zero">
+                        ⚠️ برای حفظ صفر اول شماره موبایل، ستون A را در اکسل به فرمت
+                        <strong>Text</strong> تنظیم کنید، سپس داده وارد نمایید.
+                    </p>
+                </div>
+
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data" style="margin-top: 16px;">
                     <input type="hidden" name="action" value="upload_wallet_excel">
                     <?php wp_nonce_field('wallet_excel_upload', 'wallet_nonce'); ?>
                     <table class="form-table">
                         <tr>
                             <th><label for="excel_file">انتخاب فایل:</label></th>
                             <td>
-                                <input type="file" name="excel_file" id="excel_file" accept=".csv" required>
-                                <p class="description">فرمت مجاز: CSV</p>
+                                <input type="file" name="excel_file" id="excel_file" accept=".xlsx" required>
+                                <p class="description">فرمت مجاز: <strong>.xlsx</strong></p>
                             </td>
                         </tr>
                     </table>
@@ -72,7 +107,7 @@ class Carno_Wallet_Admin {
                 </form>
             </div>
 
-            <div class="card" style="max-width: 800px; margin-top: 20px;">
+            <div class="card carno-wallet-card" style="max-width: 800px; margin-top: 20px;">
                 <h2>جستجوی کاربر</h2>
                 <form method="get">
                     <input type="hidden" name="page" value="user-wallet">
@@ -88,6 +123,8 @@ class Carno_Wallet_Admin {
         <?php
     }
 
+    // ─── نمایش پیام‌های موفقیت/خطا ────────────────────────────
+
     private function render_notices() {
         if (!empty($_GET['success']) && $_GET['success'] === 'uploaded') {
             $updated = intval($_GET['updated'] ?? 0);
@@ -102,10 +139,12 @@ class Carno_Wallet_Admin {
         }
 
         $errors = [
-            'no_file'       => 'هیچ فایلی انتخاب نشده است.',
-            'invalid_type'  => 'فرمت فایل پشتیبانی نمی‌شود. لطفاً از CSV استفاده کنید.',
-            'process_failed'=> 'خطا در پردازش فایل.',
-            'invalid_user'  => 'کاربر مورد نظر یافت نشد.',
+            'no_file'          => 'هیچ فایلی انتخاب نشده است.',
+            'invalid_type'     => 'فرمت فایل پشتیبانی نمی‌شود. لطفاً از فرمت .xlsx استفاده کنید.',
+            'invalid_header'   => 'سرستون‌های فایل اشتباه است. باید username و amount باشند.',
+            'zip_missing'      => 'افزونه ZipArchive در PHP فعال نیست. با هاستینگ تماس بگیرید.',
+            'process_failed'   => 'خطا در پردازش فایل. فایل ممکن است خراب باشد.',
+            'invalid_user'     => 'کاربر مورد نظر یافت نشد.',
         ];
 
         if (!empty($_GET['error']) && isset($errors[$_GET['error']])) {
@@ -113,22 +152,18 @@ class Carno_Wallet_Admin {
         }
     }
 
+    // ─── نمایش نتیجه جستجو ─────────────────────────────────────
+
     private function render_user_search_result() {
         if (empty($_GET['search_user'])) return;
 
-        // بررسی nonce برای جستجو
         if (empty($_GET['search_nonce']) || !wp_verify_nonce($_GET['search_nonce'], 'wallet_search')) {
             echo '<p style="color:red;">درخواست نامعتبر.</p>';
             return;
         }
 
         $username = sanitize_text_field($_GET['search_user']);
-        $user = get_user_by('login', $username);
-
-        // جستجو با ایمیل اگر با login پیدا نشد
-        if (!$user) {
-            $user = get_user_by('email', $username);
-        }
+        $user     = get_user_by('login', $username) ?: get_user_by('email', $username);
 
         if (!$user) {
             echo '<p style="color: red;">کاربری با این مشخصات یافت نشد.</p>';
@@ -171,27 +206,34 @@ class Carno_Wallet_Admin {
         $file     = $_FILES['excel_file'];
         $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
 
-        if ($file_ext !== 'csv') {
+        if ($file_ext !== 'xlsx') {
             wp_redirect(add_query_arg(['page' => 'user-wallet', 'error' => 'invalid_type'], admin_url('admin.php')));
             exit;
         }
 
-        $result = $this->process_csv($file['tmp_name']);
+        $result = $this->process_xlsx($file['tmp_name']);
 
-        if ($result['success']) {
-            wp_redirect(add_query_arg([
-                'page'    => 'user-wallet',
-                'success' => 'uploaded',
-                'updated' => $result['updated'],
-                'failed'  => $result['failed'],
-            ], admin_url('admin.php')));
-        } else {
-            wp_redirect(add_query_arg(['page' => 'user-wallet', 'error' => 'process_failed'], admin_url('admin.php')));
+        if (isset($result['error'])) {
+            $error_map = [
+                'zip_extension_missing' => 'zip_missing',
+                'cannot_open_file'      => 'process_failed',
+                'invalid_header'        => 'invalid_header',
+            ];
+            $error_code = $error_map[$result['error']] ?? 'process_failed';
+            wp_redirect(add_query_arg(['page' => 'user-wallet', 'error' => $error_code], admin_url('admin.php')));
+            exit;
         }
+
+        wp_redirect(add_query_arg([
+            'page'    => 'user-wallet',
+            'success' => 'uploaded',
+            'updated' => $result['updated'],
+            'failed'  => $result['failed'],
+        ], admin_url('admin.php')));
         exit;
     }
 
-    // ─── هندلر ویرایش تک‌کاربر (قبلاً وجود نداشت) ─────────────
+    // ─── هندلر ویرایش تک‌کاربر ─────────────────────────────────
 
     public function handle_single_update() {
         if (!current_user_can('manage_options')) wp_die('دسترسی غیرمجاز');
@@ -211,41 +253,55 @@ class Carno_Wallet_Admin {
         exit;
     }
 
-    // ─── پردازش CSV ────────────────────────────────────────────
+    // ─── پردازش فایل XLSX ──────────────────────────────────────
 
-    private function process_csv($file_path) {
+    private function process_xlsx($file_path) {
+        $result = Carno_Wallet_XLSX_Reader::read($file_path);
+
+        if (isset($result['error'])) {
+            return $result;
+        }
+
+        $rows    = $result['rows'];
         $updated = 0;
         $failed  = 0;
 
-        $handle = fopen($file_path, 'r');
-        if ($handle === false) {
-            return ['success' => false];
+        // پیدا کردن ردیف هدر (اولین ردیف غیرخالی)
+        $header_row = null;
+        $header_idx = null;
+        foreach ($rows as $row_num => $row) {
+            $values = array_values($row);
+            if (!empty($values[0])) {
+                $header_row = array_map('strtolower', array_map('trim', $values));
+                $header_idx = $row_num;
+                break;
+            }
         }
 
-        // حذف BOM در صورت وجود
-        $bom = fread($handle, 3);
-        if ($bom !== "\xEF\xBB\xBF") {
-            rewind($handle);
+        // بررسی اینکه سرستون‌ها درست هستند
+        if (
+            $header_row === null ||
+            !in_array(self::COL_USERNAME, $header_row, true) ||
+            !in_array(self::COL_AMOUNT, $header_row, true)
+        ) {
+            return ['error' => 'invalid_header'];
         }
 
-        // رد کردن ردیف هدر
-        fgetcsv($handle);
+        $username_col = array_search(self::COL_USERNAME, $header_row);
+        $amount_col   = array_search(self::COL_AMOUNT, $header_row);
 
-        while (($row = fgetcsv($handle)) !== false) {
-            if (count($row) < 2) continue;
+        foreach ($rows as $row_num => $row) {
+            if ($row_num <= $header_idx) continue;
 
-            $username = trim($row[0]);
-            $amount   = floatval($row[1]);
+            $username = trim($row[$username_col] ?? '');
+            $amount   = floatval($row[$amount_col] ?? 0);
 
             if ($username === '' || $amount < 0) {
                 $failed++;
                 continue;
             }
 
-            $user = get_user_by('login', $username);
-            if (!$user) {
-                $user = get_user_by('email', $username);
-            }
+            $user = get_user_by('login', $username) ?: get_user_by('email', $username);
 
             if ($user) {
                 Carno_Wallet_Core::set_user_balance($user->ID, $amount);
@@ -255,8 +311,6 @@ class Carno_Wallet_Admin {
             }
         }
 
-        fclose($handle);
-
-        return ['success' => true, 'updated' => $updated, 'failed' => $failed];
+        return ['updated' => $updated, 'failed' => $failed];
     }
 }

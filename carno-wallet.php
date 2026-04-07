@@ -1,20 +1,21 @@
 <?php
 /**
  * Plugin Name: کارنو ولت - کیف پول کاربران کارنو مهارت
- * Description: مدیریت کیف پول کاربران آکادمی کارنو مهارت با قابلیت آپلود CSV
- * Version: 1.1.0
+ * Description: مدیریت کیف پول کاربران آکادمی کارنو مهارت با قابلیت آپلود اکسل
+ * Version: 1.2.0
  * Author: Carno Maharat
  * Text Domain: carno-wallet
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('CARNO_WALLET_VERSION',  '1.1.0');
+define('CARNO_WALLET_VERSION',  '1.2.0');
 define('CARNO_WALLET_PATH',     plugin_dir_path(__FILE__));
 define('CARNO_WALLET_URL',      plugin_dir_url(__FILE__));
 define('CARNO_WALLET_META_KEY', 'user_wallet_balance');
 
 require_once CARNO_WALLET_PATH . 'includes/class-wallet-core.php';
+require_once CARNO_WALLET_PATH . 'includes/class-wallet-xlsx-reader.php';
 require_once CARNO_WALLET_PATH . 'includes/class-wallet-admin.php';
 
 /**
