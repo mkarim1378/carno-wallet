@@ -30,6 +30,12 @@ class Carno_Wallet_Admin {
         add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']);
         add_action('admin_post_upload_wallet_excel', [$this, 'handle_excel_upload']);
         add_action('admin_post_update_single_wallet', [$this, 'handle_single_update']);
+
+        // ستون موجودی در صفحه کاربران وردپرس
+        add_filter('manage_users_columns',       [$this, 'users_column_header']);
+        add_filter('manage_users_custom_column', [$this, 'users_column_value'], 10, 3);
+        add_filter('manage_users_sortable_columns', [$this, 'users_column_sortable']);
+        add_action('pre_get_users',              [$this, 'users_column_orderby']);
     }
 
     public function add_admin_menu() {
@@ -190,6 +196,32 @@ class Carno_Wallet_Admin {
             </form>
         </div>
         <?php
+    }
+
+    // ─── ستون موجودی در صفحه کاربران وردپرس ──────────────────
+
+    public function users_column_header($columns) {
+        $columns['wallet_balance'] = 'موجودی کیف پول';
+        return $columns;
+    }
+
+    public function users_column_value($value, $column_name, $user_id) {
+        if ($column_name !== 'wallet_balance') return $value;
+
+        $balance = Carno_Wallet_Core::get_user_balance($user_id);
+        return number_format($balance) . ' <small style="color:#666">تومان</small>';
+    }
+
+    public function users_column_sortable($columns) {
+        $columns['wallet_balance'] = 'wallet_balance';
+        return $columns;
+    }
+
+    public function users_column_orderby($query) {
+        if (!is_admin() || $query->get('orderby') !== 'wallet_balance') return;
+
+        $query->set('meta_key', CARNO_WALLET_META_KEY);
+        $query->set('orderby', 'meta_value_num');
     }
 
     // ─── هندلر آپلود فایل ──────────────────────────────────────
