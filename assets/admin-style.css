@@ -58,3 +58,138 @@
     padding: 1px 4px;
     border-radius: 3px;
 }
+
+/* ─── سبک‌های فرانت‌اند: کیف پول در سبد خرید ─── */
+
+#carno-wallet-section {
+    text-align: right;
+    direction: rtl;
+}
+
+#carno-wallet-section h3 {
+    font-size: 20px;
+    color: #0073aa;
+    margin: 0 0 15px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+#carno-wallet-section > div {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: right;
+    box-shadow: 0 2px 8px rgba(0, 115, 170, 0.1);
+}
+
+#carno-wallet-section p {
+    margin: 10px 0;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+#carno-wallet-section p strong {
+    color: #333;
+    font-weight: 600;
+}
+
+#carno-wallet-section .carno-wallet-balance {
+    font-size: 22px;
+    color: #27ae60;
+    font-weight: 700;
+    display: block;
+    margin-top: 5px;
+}
+
+#carno-wallet-toggle-btn {
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 15px;
+}
+
+#carno-wallet-toggle-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 115, 170, 0.3);
+}
+
+#carno-wallet-toggle-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* پیام اطلاعات جزئی پرداخت */
+#carno-wallet-section .carno-wallet-partial-info {
+    background: #fff3cd;
+    color: #856404;
+    padding: 12px 15px;
+    border-radius: 5px;
+    margin-top: 15px;
+    border-right: 4px solid #ffc107;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* اطلاعات کیف پول در صفحه تسویه‌حساب */
+.carno-checkout-wallet-info {
+    background: #f0f7ff !important;
+    border: 2px solid #0073aa !important;
+    padding: 20px !important;
+    border-radius: 8px !important;
+    margin-bottom: 20px !important;
+    text-align: right;
+    direction: rtl;
+}
+
+.carno-checkout-wallet-info h3 {
+    margin-top: 0;
+    color: #0073aa;
+    font-size: 18px;
+}
+
+.carno-checkout-wallet-info table {
+    width: 100%;
+    margin: 15px 0;
+    font-size: 15px;
+}
+
+.carno-checkout-wallet-info table tr {
+    border-bottom: 1px solid #ddd;
+}
+
+.carno-checkout-wallet-info table tr:last-child {
+    border-bottom: none;
+}
+
+.carno-checkout-wallet-info table td {
+    padding: 10px 0;
+    text-align: right;
+}
+
+.carno-checkout-wallet-info table td:last-child {
+    font-weight: 600;
+    text-align: left;
+}
+
+.carno-checkout-wallet-info .wallet-amount {
+    color: #27ae60;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.carno-checkout-wallet-info .remaining-amount {
+    color: #e74c3c;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.carno-checkout-wallet-info .success-message {
+    color: #27ae60;
+}
+

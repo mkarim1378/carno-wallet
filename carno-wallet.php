@@ -15,6 +15,7 @@ define('CARNO_WALLET_URL',      plugin_dir_url(__FILE__));
 define('CARNO_WALLET_META_KEY', 'user_wallet_balance');
 
 require_once CARNO_WALLET_PATH . 'includes/class-wallet-core.php';
+require_once CARNO_WALLET_PATH . 'includes/class-wallet-cart.php';
 require_once CARNO_WALLET_PATH . 'includes/class-wallet-xlsx-reader.php';
 require_once CARNO_WALLET_PATH . 'includes/class-wallet-admin.php';
 
@@ -29,5 +30,6 @@ add_action('plugins_loaded', function () {
     }
 
     Carno_Wallet_Core::get_instance();
+    Carno_Wallet_Cart::get_instance();
     Carno_Wallet_Admin::get_instance();
 });

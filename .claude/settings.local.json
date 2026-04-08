@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(composer --version)",
+      "Bash(composer.phar --version)",
+      "Bash(php -r \"echo PHP_VERSION;\")",
+      "Bash(where php:*)",
+      "Bash(cmd.exe /c \"composer --version 2>&1 && php --version 2>&1\")"
+    ]
+  }
+}
