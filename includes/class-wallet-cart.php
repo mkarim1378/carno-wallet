@@ -28,6 +28,9 @@ class Carno_Wallet_Cart {
         // ذخیره اطلاعات کیف پول در سفارش
         add_action('woocommerce_checkout_create_order', [$this, 'save_wallet_to_order']);
         
+        // اطمینان از صحیح بودن order totals پس از ایجاد order
+        add_action('woocommerce_checkout_order_created', [$this, 'recalculate_order_totals'], 9, 1);
+        
         // بروزرسانی order totals و مبلغ درگاه
         add_action('woocommerce_checkout_process', [$this, 'ensure_wallet_fee_in_order']);
         
@@ -50,7 +53,6 @@ class Carno_Wallet_Cart {
     public function apply_wallet_discount() {
         if (is_admin() && !defined('DOING_AJAX')) return;
         if (!is_user_logged_in()) return;
-        if (is_checkout()) return; // جلوگیری از صدا زده شدن دوباره در checkout
 
         $user_id = get_current_user_id();
         $balance = Carno_Wallet_Core::get_user_balance($user_id);
@@ -67,6 +69,16 @@ class Carno_Wallet_Cart {
 
         // اگر مبلغی برای کم کردن وجود ندارد، fee اضافه نکنید
         if ($deduct_amount <= 0) return;
+
+        // بررسی اینکه آیا fee قبلاً اضافه شده‌است
+        // (جلوگیری از اضافه شدن دوباره feet)
+        $cart_fees = WC()->cart->get_fees();
+        foreach ($cart_fees as $fee) {
+            if (strpos($fee->name, 'اعتبار کیف پول') !== false) {
+                // fee قبلاً اضافه شده‌است
+                return;
+            }
+        }
 
         // اعمال به عنوان اعتبار منفی (خصم)
         WC()->cart->add_fee(
@@ -92,12 +104,39 @@ class Carno_Wallet_Cart {
     }
 
     /**
+     * بروزرسانی Order totals پس از ایجاد order
+     * این اطمینان می‌دهد که fees به درستی به order شامل شده‌اند
+     */
+    public function recalculate_order_totals($order) {
+        if (!is_user_logged_in()) return;
+        
+        // order نیاز دارد تا totals مجدداً محاسبه شود
+        // برای اطمینان از اینکه fees درست می‌آید
+        $order->calculate_totals(false);
+    }
+
+    /**
      * ذخیره اطلاعات کیف پول در سفارش
      */
     public function save_wallet_to_order($order) {
         if (!is_user_logged_in()) return;
 
+        // اول اطمینان حاصل کن که fees محاسبه شده‌اند
+        WC()->cart->calculate_totals();
+
         $deduct_amount = WC()->session->get('carno_wallet_deduct_amount');
+        
+        if (!$deduct_amount || $deduct_amount <= 0) {
+            // اگر session خالی است، دوباره محاسبه کن
+            $user_id = $order->get_user_id();
+            $balance = Carno_Wallet_Core::get_user_balance($user_id);
+            $cart_subtotal = WC()->cart->get_subtotal();
+            
+            if ($balance > 0 && $cart_subtotal > 0) {
+                $deduct_amount = min($balance, $cart_subtotal);
+                WC()->session->set('carno_wallet_deduct_amount', $deduct_amount);
+            }
+        }
         
         if ($deduct_amount && $deduct_amount > 0) {
             $order->update_meta_data(CARNO_WALLET_ORDER_USED_KEY, true);
