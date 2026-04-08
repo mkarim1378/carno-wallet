@@ -25,11 +25,11 @@ class Carno_Wallet_Cart {
         // اعمال خصم به قیمت - خودکار بدون نیاز به انتخاب کاربر
         add_action('woocommerce_cart_calculate_fees', [$this, 'apply_wallet_discount']);
         
-        // نمایش اطلاعات کیف پول در صفحه تسویه‌حساب
-        add_action('woocommerce_before_checkout_form', [$this, 'display_wallet_info_checkout']);
-        
         // ذخیره اطلاعات کیف پول در سفارش
         add_action('woocommerce_checkout_create_order', [$this, 'save_wallet_to_order']);
+        
+        // بروزرسانی order totals و مبلغ درگاه
+        add_action('woocommerce_checkout_process', [$this, 'ensure_wallet_fee_in_order']);
         
         // پردازش سفارش پس از ایجاد
         add_action('woocommerce_checkout_order_created', [$this, 'process_full_wallet_payment'], 10, 1);
@@ -79,55 +79,16 @@ class Carno_Wallet_Cart {
     }
 
     /**
-     * نمایش اطلاعات کیف پول در صفحه تسویه‌حساب
+     * اطمینان از محاسبه صحیح fees قبل از checkout
      */
-    public function display_wallet_info_checkout() {
+    public function ensure_wallet_fee_in_order() {
         if (!is_user_logged_in()) return;
 
         $deduct_amount = WC()->session->get('carno_wallet_deduct_amount');
         if (!$deduct_amount || $deduct_amount <= 0) return;
 
-        $user_id = get_current_user_id();
-        $balance = Carno_Wallet_Core::get_user_balance($user_id);
-        
-        // استفاده از subtotal به جای total برای جلوگیری از infinite loop
-        $cart_subtotal = WC()->cart->get_subtotal();
-        $remaining = max(0, $cart_subtotal - floatval($deduct_amount));
-
-        echo '<div class="carno-checkout-wallet-info">';
-        echo '<h3>📊 خلاصه استفاده از کیف پول</h3>';
-        echo '<table>';
-        
-        echo '<tr>';
-        echo '  <td><strong>موجودی کیف پول شما:</strong></td>';
-        echo '  <td style="color: #27ae60; font-weight: 600;">' . number_format($balance) . ' تومان</td>';
-        echo '</tr>';
-        
-        echo '<tr>';
-        echo '  <td><strong>مبلغ کل سفارش:</strong></td>';
-        echo '  <td style="font-weight: 600; font-size: 16px;">' . number_format($cart_subtotal) . ' تومان</td>';
-        echo '</tr>';
-        
-        echo '<tr>';
-        echo '  <td><strong>تخفیف کیف پول:</strong></td>';
-        echo '  <td class="wallet-amount" style="color: #e74c3c;">- ' . number_format($deduct_amount) . ' تومان</td>';
-        echo '</tr>';
-
-        if ($remaining > 0) {
-            echo '<tr>';
-            echo '  <td><strong>مبلغ قابل پرداخت:</strong></td>';
-            echo '  <td class="remaining-amount" style="color: #f39c12; font-weight: 600;">' . number_format($remaining) . ' تومان</td>';
-            echo '</tr>';
-        } else {
-            echo '<tr>';
-            echo '  <td colspan="2" style="text-align: center; padding: 15px; background: #e8f8f5; border-radius: 5px;">';
-            echo '  <span class="success-message">✓ سفارش شما کاملاً از طریق کیف پول پرداخت می‌شود!</span>';
-            echo '  </td>';
-            echo '</tr>';
-        }
-        
-        echo '</table>';
-        echo '</div>';
+        // اطمینان از محاسبه صحیح cart totals
+        WC()->cart->calculate_totals();
     }
 
     /**
@@ -156,6 +117,8 @@ class Carno_Wallet_Cart {
         
         if (!$deduct_amount || $deduct_amount <= 0) return;
 
+        // اطمینان از محاسبه صحیح totals (شامل fees)
+        $order->calculate_totals();
         $order_total = floatval($order->get_total());
         
         // اگر موجودی کیف پول برای پوشش کل سفارش کافی است
