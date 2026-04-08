@@ -16,14 +16,8 @@ class Carno_Wallet_Core {
     }
 
     private function __construct() {
-        add_filter('woocommerce_payment_gateways', [$this, 'register_gateway']);
         add_action('woocommerce_account_dashboard', [$this, 'display_wallet_balance']);
         add_action('woocommerce_refund_created', [$this, 'handle_refund'], 10, 2);
-    }
-
-    public function register_gateway($gateways) {
-        $gateways[] = 'Carno_Wallet_Gateway';
-        return $gateways;
     }
 
     public function display_wallet_balance() {
