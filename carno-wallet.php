@@ -29,9 +29,7 @@ require_once CARNO_WALLET_PATH . 'includes/admin/class-wallet-core.php';
 require_once CARNO_WALLET_PATH . 'includes/admin/class-wallet-cart.php';
 require_once CARNO_WALLET_PATH . 'includes/admin/class-wallet-xlsx-reader.php';
 require_once CARNO_WALLET_PATH . 'includes/admin/class-wallet-admin.php';
-
-// ─── بارگذاری Gateway ───────────────────────────────────────
-require_once CARNO_WALLET_PATH . 'includes/gateway/class-wallet-gateway.php';
+require_once CARNO_WALLET_PATH . 'includes/admin/class-wallet-order.php';
 
 // ─── بارگذاری API ───────────────────────────────────────────
 require_once CARNO_WALLET_PATH . 'includes/api/class-wallet-api.php';
@@ -42,6 +40,9 @@ require_once CARNO_WALLET_PATH . 'includes/api/class-wallet-api.php';
  * باگ‌فیکس: راه‌اندازی بعد از plugins_loaded تا WooCommerce حتماً لود شده باشد.
  */
 add_action('plugins_loaded', function () {
+    // بارگذاری Gateway (در اینجا WooCommerce حتماً لود شده است)
+    require_once CARNO_WALLET_PATH . 'includes/gateway/class-wallet-gateway.php';
+    
     // Helpers از ابتدا موجود هستند
     
     // Core باید اول بارگذاری شود
@@ -53,14 +54,15 @@ add_action('plugins_loaded', function () {
     // Admin interface
     Carno_Wallet_Admin::get_instance();
     
+    // Order management
+    Carno_Wallet_Order::get_instance();
+    
     // REST API
     Carno_Wallet_API::get_instance();
-});
-
-/**
- * ثبت‌نام درگاه پرداخت WooCommerce
- */
-add_filter('woocommerce_payment_gateways', function ($gateways) {
-    $gateways[] = 'Carno_Wallet_Gateway';
-    return $gateways;
+    
+    // ثبت‌نام درگاه پرداخت WooCommerce
+    add_filter('woocommerce_payment_gateways', function ($gateways) {
+        $gateways[] = 'Carno_Wallet_Gateway';
+        return $gateways;
+    });
 });
