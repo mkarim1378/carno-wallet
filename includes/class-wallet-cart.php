@@ -58,7 +58,14 @@ class Carno_Wallet_Cart {
 
         // محاسبه مبلغی که باید از کیف پول کم شود
         $cart_total = floatval(WC()->cart->get_total('edit'));
+        
+        // اگر سبد خرید خالی است یا مبلغی ندارد، fee اضافه نکنید
+        if ($cart_total <= 0) return;
+
         $deduct_amount = min($balance, $cart_total);
+
+        // اگر مبلغی برای کم کردن وجود ندارد، fee اضافه نکنید
+        if ($deduct_amount <= 0) return;
 
         // اعمال به عنوان اعتبار منفی (خصم) - نمایش به عنوان subtotal
         WC()->cart->add_fee(
@@ -122,8 +129,8 @@ class Carno_Wallet_Cart {
         $deduct_amount = WC()->session->get('carno_wallet_deduct_amount');
         
         if ($deduct_amount && $deduct_amount > 0) {
-            $order->update_meta_data('_carno_wallet_used', true);
-            $order->update_meta_data('_carno_wallet_amount', floatval($deduct_amount));
+            $order->update_meta_data(CARNO_WALLET_ORDER_USED_KEY, true);
+            $order->update_meta_data(CARNO_WALLET_ORDER_AMOUNT_KEY, floatval($deduct_amount));
         }
     }
 
@@ -161,8 +168,8 @@ class Carno_Wallet_Cart {
                     )
                 );
                 
-                $order->update_meta_data('_carno_wallet_full_payment', true);
-                $order->update_meta_data('_carno_wallet_deducted', true);
+                $order->update_meta_data(CARNO_WALLET_ORDER_FULL_PAYMENT_KEY, true);
+                $order->update_meta_data(CARNO_WALLET_ORDER_DEDUCTED_KEY, true);
                 $order->save();
                 
                 // پاک‌کردن سبد خرید
@@ -184,7 +191,7 @@ class Carno_Wallet_Cart {
     public static function get_deducted_amount($order_id = null) {
         if ($order_id) {
             $order = wc_get_order($order_id);
-            return floatval($order->get_meta('_carno_wallet_amount', true) ?? 0);
+            return floatval($order->get_meta(CARNO_WALLET_ORDER_AMOUNT_KEY, true) ?? 0);
         }
         return floatval(WC()->session->get('carno_wallet_deduct_amount') ?? 0);
     }
@@ -194,7 +201,7 @@ class Carno_Wallet_Cart {
      */
     public static function order_used_wallet($order_id) {
         $order = wc_get_order($order_id);
-        return $order->get_meta('_carno_wallet_used', true) === true;
+        return $order->get_meta(CARNO_WALLET_ORDER_USED_KEY, true) === true;
     }
 
     /**
@@ -209,9 +216,9 @@ class Carno_Wallet_Cart {
         $order = wc_get_order($order_id);
 
         // بررسی اینکه آیا این سفارش قبلاً پردازش شده
-        if ($order->get_meta('_carno_wallet_deducted', true)) return;
+        if ($order->get_meta(CARNO_WALLET_ORDER_DEDUCTED_KEY, true)) return;
 
-        $wallet_amount = $order->get_meta('_carno_wallet_amount', true);
+        $wallet_amount = $order->get_meta(CARNO_WALLET_ORDER_AMOUNT_KEY, true);
         if (!$wallet_amount || $wallet_amount <= 0) return;
 
         $user_id = $order->get_user_id();
@@ -234,7 +241,7 @@ class Carno_Wallet_Cart {
         Carno_Wallet_Core::deduct_balance($user_id, $wallet_amount);
 
         // ذخیره‌ی اطلاع‌رسانی اینکه کم‌کردن انجام شده
-        $order->update_meta_data('_carno_wallet_deducted', true);
+        $order->update_meta_data(CARNO_WALLET_ORDER_DEDUCTED_KEY, true);
         $order->save();
 
         $new_balance = Carno_Wallet_Core::get_user_balance($user_id);

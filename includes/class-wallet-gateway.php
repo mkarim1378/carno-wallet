@@ -105,7 +105,7 @@ class Carno_Wallet_Gateway extends WC_Payment_Gateway {
         $remaining = $order_total - $wallet_deducted;
         $order->set_payment_method_title(sprintf('کیف پول + درگاه پرداخت'));
         $order->update_meta_data('_carno_wallet_partial_payment', true);
-        $order->update_meta_data('_carno_wallet_amount_paid', $wallet_deducted);
+        $order->update_meta_data(CARNO_WALLET_ORDER_AMOUNT_KEY, $wallet_deducted);
         $order->update_meta_data('_carno_wallet_amount_remaining', $remaining);
         
         $order->add_order_note(

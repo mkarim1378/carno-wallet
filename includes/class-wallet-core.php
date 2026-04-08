@@ -60,11 +60,11 @@ class Carno_Wallet_Core {
         if (!$user_id) return;
 
         // بررسی اینکه آیا کیف پول برای این سفارش استفاده شده
-        $wallet_amount = $order->get_meta('_carno_wallet_amount', true);
+        $wallet_amount = $order->get_meta(CARNO_WALLET_ORDER_AMOUNT_KEY, true);
         if (!$wallet_amount || $wallet_amount <= 0) return;
 
         // اگر قبلاً برگردانده شده، دوباره نه
-        if ($order->get_meta('_carno_wallet_refunded', true)) return;
+        if ($order->get_meta(CARNO_WALLET_ORDER_REFUNDED_KEY, true)) return;
 
         // محاسبه مبلغ بازپرداخت برای کیف پول
         $refund_amount = floatval($args['amount'] ?? 0);
@@ -75,7 +75,7 @@ class Carno_Wallet_Core {
             // تمام مبلغ کیف پول را برگردانید
             self::add_to_balance($user_id, $wallet_amount);
             
-            $order->update_meta_data('_carno_wallet_refunded', true);
+            $order->update_meta_data(CARNO_WALLET_ORDER_REFUNDED_KEY, true);
             $order->add_order_note(
                 sprintf('💳 بازپرداخت به کیف پول: %s تومان',
                     number_format($wallet_amount)
