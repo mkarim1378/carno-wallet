@@ -24,12 +24,14 @@ require_once CARNO_WALLET_PATH . 'includes/class-wallet-admin.php';
  * قبلاً plugin قبل از plugins_loaded راه‌اندازی می‌شد.
  */
 add_action('plugins_loaded', function () {
+    // Core سال باید اول بارگذاری شود
+    Carno_Wallet_Core::get_instance();
+    Carno_Wallet_Cart::get_instance();
+    
     // Gateway فقط اگر WooCommerce فعال باشد لود می‌شود
     if (class_exists('WC_Payment_Gateway')) {
         require_once CARNO_WALLET_PATH . 'includes/class-wallet-gateway.php';
     }
 
-    Carno_Wallet_Core::get_instance();
-    Carno_Wallet_Cart::get_instance();
     Carno_Wallet_Admin::get_instance();
 });

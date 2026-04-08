@@ -98,4 +98,4 @@ class Carno_Wallet_Core {
         $current = self::get_user_balance($user_id);
         $new_balance = $current + floatval($amount);
         return self::set_user_balance($user_id, $new_balance);
-    }
+    }}

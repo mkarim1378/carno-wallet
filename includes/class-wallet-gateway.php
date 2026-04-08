@@ -66,7 +66,7 @@ class Carno_Wallet_Gateway extends WC_Payment_Gateway {
         $balance     = Carno_Wallet_Core::get_user_balance($user_id);
 
         // بررسی اینکه آیا کاربر کیف پول را در سبد خرید انتخاب کرده
-        $wallet_deducted = Carno_Wallet_Cart::get_deducted_amount($order_id);
+        $wallet_deducted = floatval(WC()->session->get('carno_wallet_deduct_amount') ?? 0);
 
         // اگر هیچ مبلغی از کیف پول کم نشده، خطا
         if ($wallet_deducted <= 0) {
