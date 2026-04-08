@@ -50,24 +50,25 @@ class Carno_Wallet_Cart {
     public function apply_wallet_discount() {
         if (is_admin() && !defined('DOING_AJAX')) return;
         if (!is_user_logged_in()) return;
+        if (is_checkout()) return; // جلوگیری از صدا زده شدن دوباره در checkout
 
         $user_id = get_current_user_id();
         $balance = Carno_Wallet_Core::get_user_balance($user_id);
 
         if ($balance <= 0) return;
 
-        // محاسبه مبلغی که باید از کیف پول کم شود
-        $cart_total = floatval(WC()->cart->get_total('edit'));
+        // محاسبه مبلغ کل سبد خرید (بدون fee ها)
+        $cart_subtotal = WC()->cart->get_subtotal();
         
         // اگر سبد خرید خالی است یا مبلغی ندارد، fee اضافه نکنید
-        if ($cart_total <= 0) return;
+        if ($cart_subtotal <= 0) return;
 
-        $deduct_amount = min($balance, $cart_total);
+        $deduct_amount = min($balance, $cart_subtotal);
 
         // اگر مبلغی برای کم کردن وجود ندارد، fee اضافه نکنید
         if ($deduct_amount <= 0) return;
 
-        // اعمال به عنوان اعتبار منفی (خصم) - نمایش به عنوان subtotal
+        // اعمال به عنوان اعتبار منفی (خصم)
         WC()->cart->add_fee(
             sprintf(__('اعتبار کیف پول: -%s تومان', 'carno-wallet'), number_format($deduct_amount)),
             -floatval($deduct_amount)
@@ -86,27 +87,36 @@ class Carno_Wallet_Cart {
         $deduct_amount = WC()->session->get('carno_wallet_deduct_amount');
         if (!$deduct_amount || $deduct_amount <= 0) return;
 
-        $cart_total = floatval(WC()->cart->get_total('edit'));
-        $remaining = $cart_total - floatval($deduct_amount);
+        $user_id = get_current_user_id();
+        $balance = Carno_Wallet_Core::get_user_balance($user_id);
+        
+        // استفاده از subtotal به جای total برای جلوگیری از infinite loop
+        $cart_subtotal = WC()->cart->get_subtotal();
+        $remaining = max(0, $cart_subtotal - floatval($deduct_amount));
 
         echo '<div class="carno-checkout-wallet-info">';
         echo '<h3>📊 خلاصه استفاده از کیف پول</h3>';
         echo '<table>';
         
         echo '<tr>';
-        echo '  <td><strong>مبلغ کل سفارش:</strong></td>';
-        echo '  <td style="font-weight: 600; font-size: 16px;">' . number_format($cart_total) . ' تومان</td>';
+        echo '  <td><strong>موجودی کیف پول شما:</strong></td>';
+        echo '  <td style="color: #27ae60; font-weight: 600;">' . number_format($balance) . ' تومان</td>';
         echo '</tr>';
         
         echo '<tr>';
-        echo '  <td><strong>مبلغ کیف پول:</strong></td>';
-        echo '  <td class="wallet-amount">- ' . number_format($deduct_amount) . ' تومان</td>';
+        echo '  <td><strong>مبلغ کل سفارش:</strong></td>';
+        echo '  <td style="font-weight: 600; font-size: 16px;">' . number_format($cart_subtotal) . ' تومان</td>';
+        echo '</tr>';
+        
+        echo '<tr>';
+        echo '  <td><strong>تخفیف کیف پول:</strong></td>';
+        echo '  <td class="wallet-amount" style="color: #e74c3c;">- ' . number_format($deduct_amount) . ' تومان</td>';
         echo '</tr>';
 
         if ($remaining > 0) {
             echo '<tr>';
             echo '  <td><strong>مبلغ قابل پرداخت:</strong></td>';
-            echo '  <td class="remaining-amount">' . number_format($remaining) . ' تومان</td>';
+            echo '  <td class="remaining-amount" style="color: #f39c12; font-weight: 600;">' . number_format($remaining) . ' تومان</td>';
             echo '</tr>';
         } else {
             echo '<tr>';
