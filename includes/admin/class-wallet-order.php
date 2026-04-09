@@ -18,14 +18,57 @@ class Carno_Wallet_Order {
     }
 
     private function __construct() {
-        // اضافه‌کردن رو در پنل سفارش
+        // اضافه‌کردن در صفحه سفارش تفصیلی (جدول محصولات)
         add_action('woocommerce_admin_order_items_after_line_items', [$this, 'display_wallet_info']);
         
-        // نمایش اطلاعات کیف پول در preview سفارش
+        // نمایش اطلاعات کیف پول در قسمت totals (نمایش شده در modal و صفحه تفصیلی)
+        add_action('woocommerce_admin_order_totals_after_total', [$this, 'display_wallet_info_in_totals']);
+        
+        // نمایش اطلاعات کیف پول در preview سفارش (frontend)
         add_action('woocommerce_order_details_after_order_table', [$this, 'display_wallet_info_frontend']);
     }
 
     // ─── نمایش در پنل ادمین ──────────────────────────────────
+
+    /**
+     * نمایش اطلاعات کیف پول در قسمت totals
+     * این hook در modal و صفحه تفصیلی نمایش داده می‌شود
+     */
+    public function display_wallet_info_in_totals($order_id) {
+        $order = wc_get_order($order_id);
+        if (!$order) {
+            return;
+        }
+
+        $wallet_amount = $order->get_meta(CARNO_WALLET_ORDER_AMOUNT_KEY, true);
+
+        // اگر کیف پول استفاده نشده، نمایش ندهید
+        if (!$wallet_amount || $wallet_amount <= 0) {
+            return;
+        }
+
+        $is_full_payment = $order->get_meta(CARNO_WALLET_ORDER_FULL_PAYMENT_KEY, true);
+        $is_partial = $order->get_meta('_carno_wallet_partial_payment', true);
+        $remaining = $order->get_meta('_carno_wallet_amount_remaining', true);
+        
+        ?>
+        <tr>
+            <td class="label">💳 کیف پول:</td>
+            <td width="1%"></td>
+            <td class="total">
+                <strong><?php echo esc_html(Carno_Wallet_Helpers::format_currency($wallet_amount)); ?></strong>
+                <?php if ($is_full_payment): ?>
+                    <br><small style="color: #27ae60;">✅ پرداخت کامل</small>
+                <?php elseif ($is_partial): ?>
+                    <br><small style="color: #f39c12;">⚠️ پرداخت جزئی</small>
+                    <?php if ($remaining): ?>
+                        <br><small style="color: #f39c12;">باقی: <?php echo esc_html(Carno_Wallet_Helpers::format_currency($remaining)); ?></small>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </td>
+        </tr>
+        <?php
+    }
 
     /**
      * نمایش اطلاعات کیف پول در پنل ادمین (بعد از محصولات)
