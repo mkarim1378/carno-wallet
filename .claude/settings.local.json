@@ -5,7 +5,8 @@
       "Bash(composer.phar --version)",
       "Bash(php -r \"echo PHP_VERSION;\")",
       "Bash(where php:*)",
-      "Bash(cmd.exe /c \"composer --version 2>&1 && php --version 2>&1\")"
+      "Bash(cmd.exe /c \"composer --version 2>&1 && php --version 2>&1\")",
+      "Bash(find /d/Github/carno-wallet -type d ! -path */.*)"
     ]
   }
 }

@@ -59,13 +59,4 @@ add_action('plugins_loaded', function () {
     
     // REST API
     Carno_Wallet_API::get_instance();
-<<<<<<< HEAD
-=======
-    
-    // ثبت‌نام درگاه پرداخت WooCommerce
-    add_filter('woocommerce_payment_gateways', function ($gateways) {
-        $gateways[] = 'Carno_Wallet_Gateway';
-        return $gateways;
-    });
->>>>>>> 8ba72b0621cc524bf46416b4c1f804316b1ee618
 });

@@ -18,7 +18,6 @@ class Carno_Wallet_Order {
     }
 
     private function __construct() {
-<<<<<<< HEAD
         // اضافه‌کردن در صفحه سفارش تفصیلی (جدول محصولات)
         add_action('woocommerce_admin_order_items_after_line_items', [$this, 'display_wallet_info']);
         
@@ -26,19 +25,16 @@ class Carno_Wallet_Order {
         add_action('woocommerce_admin_order_totals_after_total', [$this, 'display_wallet_info_in_totals']);
         
         // نمایش اطلاعات کیف پول در preview سفارش (frontend)
-=======
         // اضافه‌کردن رو در پنل سفارش
         add_action('woocommerce_admin_order_items_after_line_items', [$this, 'display_wallet_info']);
         
         // نمایش اطلاعات کیف پول در preview سفارش
->>>>>>> 8ba72b0621cc524bf46416b4c1f804316b1ee618
         add_action('woocommerce_order_details_after_order_table', [$this, 'display_wallet_info_frontend']);
     }
 
     // ─── نمایش در پنل ادمین ──────────────────────────────────
 
     /**
-<<<<<<< HEAD
      * نمایش اطلاعات کیف پول در قسمت totals
      * این hook در modal و صفحه تفصیلی نمایش داده می‌شود
      */
@@ -79,8 +75,6 @@ class Carno_Wallet_Order {
     }
 
     /**
-=======
->>>>>>> 8ba72b0621cc524bf46416b4c1f804316b1ee618
      * نمایش اطلاعات کیف پول در پنل ادمین (بعد از محصولات)
      */
     public function display_wallet_info($order_id) {
