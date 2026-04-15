@@ -49,7 +49,7 @@ class Carno_Wallet_Core {
     public function shortcode_wallet_balance() {
         $user_id = Carno_Wallet_Helpers::get_current_user_id();
         if (!$user_id) {
-            return 'برای دیدن موجودی به حساب کاربری خود <a href="/auth">وارد شوید</a>';
+            return 'برای دیدن موجودی به حساب کاربری خود <a href="/auth/">وارد شوید</a>';
         }
 
         $balance = Carno_Wallet_Helpers::get_user_balance($user_id);

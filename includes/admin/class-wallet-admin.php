@@ -149,9 +149,29 @@ class Carno_Wallet_Admin {
         if (!empty($_GET['success']) && $_GET['success'] === 'uploaded') {
             $updated = intval($_GET['updated'] ?? 0);
             $failed  = intval($_GET['failed'] ?? 0);
-            echo '<div class="notice notice-success is-dismissible"><p>';
-            echo '✅ آپلود موفق — بروزرسانی‌شده: <strong>' . $updated . '</strong> | یافت نشد: <strong>' . $failed . '</strong>';
-            echo '</p></div>';
+
+            $transient_key = 'carno_wallet_upload_result_' . get_current_user_id();
+            $detail        = get_transient($transient_key);
+            delete_transient($transient_key);
+
+            echo '<div class="notice notice-success is-dismissible">';
+            echo '<p>✅ آپلود موفق — شارژشده: <strong>' . $updated . '</strong> | یافت نشد / ناموفق: <strong>' . $failed . '</strong></p>';
+
+            if (!empty($detail['updated_list'])) {
+                echo '<p><strong>✅ شماره‌های شارژشده (' . count($detail['updated_list']) . '):</strong></p>';
+                echo '<div style="max-height:160px;overflow-y:auto;background:#f6ffed;border:1px solid #b7eb8f;border-radius:4px;padding:8px 12px;margin-bottom:8px;direction:ltr;font-family:monospace;">';
+                echo implode('<br>', array_map('esc_html', $detail['updated_list']));
+                echo '</div>';
+            }
+
+            if (!empty($detail['failed_list'])) {
+                echo '<p><strong>❌ شماره‌های ناموفق (' . count($detail['failed_list']) . '):</strong></p>';
+                echo '<div style="max-height:160px;overflow-y:auto;background:#fff2f0;border:1px solid #ffccc7;border-radius:4px;padding:8px 12px;margin-bottom:8px;direction:ltr;font-family:monospace;">';
+                echo implode('<br>', array_map('esc_html', $detail['failed_list']));
+                echo '</div>';
+            }
+
+            echo '</div>';
         }
 
         if (!empty($_GET['success']) && $_GET['success'] === 'balance_updated') {
@@ -290,6 +310,12 @@ class Carno_Wallet_Admin {
             exit;
         }
 
+        $transient_key = 'carno_wallet_upload_result_' . get_current_user_id();
+        set_transient($transient_key, [
+            'updated_list' => $result['updated_list'],
+            'failed_list'  => $result['failed_list'],
+        ], 60);
+
         wp_redirect(add_query_arg([
             'page'    => 'user-wallet',
             'success' => 'uploaded',
@@ -336,9 +362,9 @@ class Carno_Wallet_Admin {
             return $result;
         }
 
-        $rows    = $result['rows'];
-        $updated = 0;
-        $failed  = 0;
+        $rows             = $result['rows'];
+        $updated_list     = [];
+        $failed_list      = [];
 
         // پیدا کردن ردیف هدر
         $header_row = null;
@@ -371,8 +397,10 @@ class Carno_Wallet_Admin {
             $username = trim($row[$username_col] ?? '');
             $amount   = floatval($row[$amount_col] ?? 0);
 
-            if ($username === '' || $amount < 0) {
-                $failed++;
+            if ($username === '') continue;
+
+            if ($amount < 0) {
+                $failed_list[] = $username . ' (مبلغ نامعتبر)';
                 continue;
             }
 
@@ -380,12 +408,17 @@ class Carno_Wallet_Admin {
 
             if ($user) {
                 Carno_Wallet_Helpers::set_user_balance($user->ID, $amount);
-                $updated++;
+                $updated_list[] = $username;
             } else {
-                $failed++;
+                $failed_list[] = $username;
             }
         }
 
-        return ['updated' => $updated, 'failed' => $failed];
+        return [
+            'updated'      => count($updated_list),
+            'failed'       => count($failed_list),
+            'updated_list' => $updated_list,
+            'failed_list'  => $failed_list,
+        ];
     }
 }
