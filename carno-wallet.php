@@ -20,6 +20,7 @@ define('CARNO_WALLET_ORDER_USED_KEY',        '_carno_wallet_used');
 define('CARNO_WALLET_ORDER_DEDUCTED_KEY',    '_carno_wallet_deducted');
 define('CARNO_WALLET_ORDER_FULL_PAYMENT_KEY', '_carno_wallet_full_payment');
 define('CARNO_WALLET_ORDER_REFUNDED_KEY',    '_carno_wallet_refunded');
+define('CARNO_WALLET_ORDER_CASHBACK_KEY',    '_carno_wallet_cashback_applied');
 
 // ─── بارگذاری Helpers ───────────────────────────────────────
 require_once CARNO_WALLET_PATH . 'includes/helpers/class-helpers.php';

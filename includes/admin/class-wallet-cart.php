@@ -14,6 +14,7 @@ class Carno_Wallet_Cart {
     const WALLET_SESSION_KEY  = 'carno_wallet_credit_used';
     const WALLET_CREATE_PARTIAL_GATEWAY = true;
     const WALLET_MAX_RATIO    = 0.80; // حداکثر ۸۰٪ سبد خرید از کیف پول پرداخت می‌شود
+    const WALLET_CASHBACK_RATIO = 0.10; // ۱۰٪ مبلغ سبد خرید به عنوان کش‌بک به کیف پول برمی‌گردد
 
     public static function get_instance() {
         if (self::$instance === null) {
@@ -215,15 +216,33 @@ class Carno_Wallet_Cart {
 
         Carno_Wallet_Helpers::deduct_balance($user_id, $wallet_amount);
         $order->update_meta_data(CARNO_WALLET_ORDER_DEDUCTED_KEY, true);
-        $order->save();
 
         $new_balance = Carno_Wallet_Helpers::get_user_balance($user_id);
-
         $order->add_order_note(
             sprintf('✅ موجودی کیف پول کاهش یافت: %s | موجودی جدید: %s',
                 Carno_Wallet_Helpers::format_currency($wallet_amount),
                 Carno_Wallet_Helpers::format_currency($new_balance)
             )
         );
+
+        // کش‌بک: ۱۰٪ مبلغ سبد خرید به کیف پول اضافه می‌شود (یک‌بار)
+        if (!$order->get_meta(CARNO_WALLET_ORDER_CASHBACK_KEY, true)) {
+            $subtotal        = floatval($order->get_subtotal());
+            $cashback_amount = floor($subtotal * self::WALLET_CASHBACK_RATIO);
+
+            if ($cashback_amount > 0) {
+                Carno_Wallet_Helpers::add_to_balance($user_id, $cashback_amount);
+                $order->update_meta_data(CARNO_WALLET_ORDER_CASHBACK_KEY, true);
+                $order->add_order_note(
+                    sprintf('🎁 کش‌بک %s%% سبد خرید: %s به کیف پول اضافه شد | موجودی جدید: %s',
+                        intval(self::WALLET_CASHBACK_RATIO * 100),
+                        Carno_Wallet_Helpers::format_currency($cashback_amount),
+                        Carno_Wallet_Helpers::format_currency(Carno_Wallet_Helpers::get_user_balance($user_id))
+                    )
+                );
+            }
+        }
+
+        $order->save();
     }
 }
