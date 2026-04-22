@@ -11,8 +11,9 @@ if (!defined('ABSPATH')) exit;
 class Carno_Wallet_Cart {
 
     private static $instance = null;
-    const WALLET_SESSION_KEY = 'carno_wallet_credit_used';
+    const WALLET_SESSION_KEY  = 'carno_wallet_credit_used';
     const WALLET_CREATE_PARTIAL_GATEWAY = true;
+    const WALLET_MAX_RATIO    = 0.80; // حداکثر ۸۰٪ سبد خرید از کیف پول پرداخت می‌شود
 
     public static function get_instance() {
         if (self::$instance === null) {
@@ -49,7 +50,8 @@ class Carno_Wallet_Cart {
         $cart_subtotal = WC()->cart->get_subtotal();
         if ($cart_subtotal <= 0) return;
 
-        $deduct_amount = min($balance, $cart_subtotal);
+        $max_from_wallet = floor($cart_subtotal * self::WALLET_MAX_RATIO);
+        $deduct_amount   = min($balance, $max_from_wallet);
         if ($deduct_amount <= 0) return;
 
         // بررسی اینکه fee قبلاً اضافه شده‌است
@@ -104,7 +106,8 @@ class Carno_Wallet_Cart {
             $cart_subtotal = WC()->cart->get_subtotal();
             
             if ($balance > 0 && $cart_subtotal > 0) {
-                $deduct_amount = min($balance, $cart_subtotal);
+                $max_from_wallet = floor($cart_subtotal * self::WALLET_MAX_RATIO);
+                $deduct_amount   = min($balance, $max_from_wallet);
                 WC()->session->set('carno_wallet_deduct_amount', $deduct_amount);
             }
         }
@@ -129,7 +132,7 @@ class Carno_Wallet_Cart {
         $order->calculate_totals();
         $order_total = floatval($order->get_total());
         
-        if ($deduct_amount >= $order_total) {
+        if ($order_total <= 0) {
             $current_balance = Carno_Wallet_Helpers::get_user_balance($user_id);
             
             if ($current_balance >= $deduct_amount) {

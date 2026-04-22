@@ -2,14 +2,14 @@
 /**
  * Plugin Name: کارنو ولت - کیف پول کاربران کارنو مهارت
  * Description: مدیریت کیف پول کاربران آکادمی کارنو مهارت با قابلیت آپلود اکسل
- * Version: 1.3.0
+ * Version: 1.4.0
  * Author: Carno Maharat
  * Text Domain: carno-wallet
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('CARNO_WALLET_VERSION',  '1.3.0');
+define('CARNO_WALLET_VERSION',  '1.4.0');
 define('CARNO_WALLET_PATH',     plugin_dir_path(__FILE__));
 define('CARNO_WALLET_URL',      plugin_dir_url(__FILE__));
 define('CARNO_WALLET_META_KEY', 'user_wallet_balance');
