@@ -65,6 +65,8 @@ class Carno_Wallet_Core {
      * @param array $args اطلاعات بازپرداخت
      */
     public function handle_refund($refund_id, $args) {
+        if (!Carno_Wallet_Settings::is_refund_to_wallet()) return;
+
         $refund = wc_get_refund($refund_id);
         $order = $refund ? $refund->get_parent() : null;
 

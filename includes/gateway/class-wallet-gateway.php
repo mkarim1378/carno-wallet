@@ -17,8 +17,8 @@ class Carno_Wallet_Gateway extends WC_Payment_Gateway {
         $this->init_form_fields();
         $this->init_settings();
 
-        $this->title       = $this->get_option('title', 'کیف پول');
-        $this->description = $this->get_option('description', 'پرداخت کامل از موجودی کیف پول شما');
+        $this->title       = Carno_Wallet_Settings::get_gateway_title();
+        $this->description = Carno_Wallet_Settings::get_gateway_description();
 
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, [$this, 'process_admin_options']);
     }
@@ -32,16 +32,6 @@ class Carno_Wallet_Gateway extends WC_Payment_Gateway {
                 'type'    => 'checkbox',
                 'label'   => 'فعال کردن پرداخت با کیف پول',
                 'default' => 'yes',
-            ],
-            'title' => [
-                'title'   => 'عنوان',
-                'type'    => 'text',
-                'default' => 'کیف پول',
-            ],
-            'description' => [
-                'title'   => 'توضیحات',
-                'type'    => 'text',
-                'default' => 'پرداخت کامل از موجودی کیف پول شما',
             ],
         ];
     }
@@ -87,9 +77,11 @@ class Carno_Wallet_Gateway extends WC_Payment_Gateway {
 
         // کسر کردن موجودی
         Carno_Wallet_Helpers::deduct_balance($user_id, $wallet_deducted);
+        $order->update_meta_data(CARNO_WALLET_ORDER_DEDUCTED_KEY, true);
+        $order->save();
 
-        // پرداخت کامل
-        if ($wallet_deducted >= $order_total) {
+        // پرداخت کامل (هیچ مبلغی برای درگاه باقی نمانده)
+        if ($order_total <= 0) {
             return $this->process_full_payment($order, $wallet_deducted);
         }
 
@@ -135,7 +127,7 @@ class Carno_Wallet_Gateway extends WC_Payment_Gateway {
      * @return array نتیجه
      */
     private function process_partial_payment($order, $wallet_deducted, $order_total) {
-        $remaining = $order_total - $wallet_deducted;
+        $remaining = $order_total;
 
         $order->set_payment_method_title('کیف پول + درگاه پرداخت');
         $order->update_meta_data('_carno_wallet_partial_payment', true);

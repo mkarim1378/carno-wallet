@@ -49,3 +49,4 @@ wp-config.php
 
 # External test plugin (not part of wallet plugin)
 /carno-plugin.php
+/.claude

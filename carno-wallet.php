@@ -2,14 +2,14 @@
 /**
  * Plugin Name: کارنو ولت - کیف پول کاربران کارنو مهارت
  * Description: مدیریت کیف پول کاربران آکادمی کارنو مهارت با قابلیت آپلود اکسل
- * Version: 1.4.0
+ * Version: 1.5.0
  * Author: Carno Maharat
  * Text Domain: carno-wallet
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('CARNO_WALLET_VERSION',  '1.4.0');
+define('CARNO_WALLET_VERSION',  '1.5.0');
 define('CARNO_WALLET_PATH',     plugin_dir_path(__FILE__));
 define('CARNO_WALLET_URL',      plugin_dir_url(__FILE__));
 define('CARNO_WALLET_META_KEY', 'user_wallet_balance');
@@ -24,6 +24,9 @@ define('CARNO_WALLET_ORDER_CASHBACK_KEY',    '_carno_wallet_cashback_applied');
 
 // ─── بارگذاری Helpers ───────────────────────────────────────
 require_once CARNO_WALLET_PATH . 'includes/helpers/class-helpers.php';
+
+// ─── بارگذاری Settings (باید قبل از سایر کلاس‌ها بارگذاری شود) ──
+require_once CARNO_WALLET_PATH . 'includes/admin/class-wallet-settings.php';
 
 // ─── بارگذاری Admin Components ──────────────────────────────
 require_once CARNO_WALLET_PATH . 'includes/admin/class-wallet-core.php';
@@ -46,7 +49,10 @@ add_action('plugins_loaded', function () {
     
     // Helpers از ابتدا موجود هستند
     
-    // Core باید اول بارگذاری شود
+    // Settings باید اول بارگذاری شود
+    Carno_Wallet_Settings::get_instance();
+
+    // Core باید دوم بارگذاری شود
     Carno_Wallet_Core::get_instance();
     
     // Cart management
