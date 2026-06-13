@@ -23,14 +23,32 @@ class Carno_Wallet_Helpers {
     }
 
     /**
-     * تنظیم موجودی کاربر
-     * 
+     * تنظیم موجودی کاربر (با اعمال سقف موجودی در صورت تنظیم)
+     *
      * @param int $user_id شناسه کاربر
      * @param float $amount مقدار جدید
      * @return bool نتیجه عملیات
      */
     public static function set_user_balance($user_id, $amount) {
-        return update_user_meta((int) $user_id, CARNO_WALLET_META_KEY, max(0, floatval($amount)));
+        return update_user_meta((int) $user_id, CARNO_WALLET_META_KEY, self::clamp_to_max_balance($amount));
+    }
+
+    /**
+     * محدودکردن یک مقدار به سقف موجودی تنظیم‌شده در پنل ادمین
+     * مقدار همیشه >= 0 و در صورت تنظیم سقف (max_balance > 0)، <= سقف خواهد بود
+     *
+     * @param float $amount مقدار خام
+     * @return float مقدار محدودشده
+     */
+    public static function clamp_to_max_balance($amount) {
+        $amount = max(0, floatval($amount));
+
+        $max = Carno_Wallet_Settings::get_max_balance();
+        if ($max > 0 && $amount > $max) {
+            return $max;
+        }
+
+        return $amount;
     }
 
     /**
@@ -54,8 +72,8 @@ class Carno_Wallet_Helpers {
      * @return float موجودی جدید
      */
     public static function add_to_balance($user_id, $amount) {
-        $current = self::get_user_balance($user_id);
-        $new_balance = $current + floatval($amount);
+        $current     = self::get_user_balance($user_id);
+        $new_balance = self::clamp_to_max_balance($current + floatval($amount));
         return self::set_user_balance($user_id, $new_balance) ? $new_balance : $current;
     }
 

@@ -22,6 +22,7 @@ class Carno_Wallet_Settings {
         'gateway_title'       => 'کیف پول',
         'gateway_description' => 'پرداخت کامل از موجودی کیف پول شما',
         'refund_to_wallet'    => '1',
+        'max_balance'         => 0,
     ];
 
     public static function get_instance() {
@@ -64,6 +65,7 @@ class Carno_Wallet_Settings {
         add_settings_field('wallet_max_ratio',   'سقف استفاده از کیف پول',  [$this, 'field_max_ratio'],          'user-wallet-settings', 'carno_section_financial');
         add_settings_field('cashback_enabled',   'فعال بودن کش‌بک',          [$this, 'field_cashback_enabled'],   'user-wallet-settings', 'carno_section_financial');
         add_settings_field('cashback_ratio',     'درصد کش‌بک',               [$this, 'field_cashback_ratio'],     'user-wallet-settings', 'carno_section_financial');
+        add_settings_field('max_balance',        'سقف موجودی کیف پول',      [$this, 'field_max_balance'],        'user-wallet-settings', 'carno_section_financial');
         add_settings_field('deduction_statuses', 'وضعیت‌های کسر موجودی',    [$this, 'field_deduction_statuses'], 'user-wallet-settings', 'carno_section_financial');
 
         // ── بخش ۲: درگاه پرداخت ───────────────────────────────
@@ -103,6 +105,15 @@ class Carno_Wallet_Settings {
         printf(
             '<input type="number" name="%s[cashback_ratio]" value="%d" min="1" max="100" step="1" style="width:70px"> %%'
             . '<p class="description">درصد کش‌بک از مبلغ اصلی سبد خرید. (پیش‌فرض: ۱۰٪)</p>',
+            self::OPTION_KEY, $v
+        );
+    }
+
+    public function field_max_balance() {
+        $v = intval(self::fetch('max_balance'));
+        printf(
+            '<input type="number" name="%s[max_balance]" value="%d" min="0" step="1000" style="width:140px"> تومان'
+            . '<p class="description">حداکثر موجودی مجاز برای هر کاربر. در صورت رسیدن موجودی به این سقف (مثلاً با کش‌بک یا شارژ)، مقدار اضافه نادیده گرفته می‌شود. مقدار <strong>۰</strong> یعنی بدون محدودیت.</p>',
             self::OPTION_KEY, $v
         );
     }
@@ -174,6 +185,7 @@ class Carno_Wallet_Settings {
 
         $clean['wallet_max_ratio']    = min(100, max(1, intval($input['wallet_max_ratio']   ?? self::$defaults['wallet_max_ratio'])));
         $clean['cashback_ratio']      = min(100, max(1, intval($input['cashback_ratio']      ?? self::$defaults['cashback_ratio'])));
+        $clean['max_balance']         = max(0, intval($input['max_balance'] ?? self::$defaults['max_balance']));
         $clean['cashback_enabled']    = !empty($input['cashback_enabled'])  ? '1' : '0';
         $clean['refund_to_wallet']    = !empty($input['refund_to_wallet'])  ? '1' : '0';
         $clean['gateway_title']       = sanitize_text_field($input['gateway_title']       ?? self::$defaults['gateway_title']);
@@ -206,4 +218,5 @@ class Carno_Wallet_Settings {
     public static function get_gateway_title()       { return (string) self::fetch('gateway_title'); }
     public static function get_gateway_description() { return (string) self::fetch('gateway_description'); }
     public static function is_refund_to_wallet()     { return self::fetch('refund_to_wallet')   === '1'; }
+    public static function get_max_balance()         { return floatval(self::fetch('max_balance')); }
 }

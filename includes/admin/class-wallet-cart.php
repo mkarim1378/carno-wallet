@@ -228,15 +228,30 @@ class Carno_Wallet_Cart {
             $cashback_amount = floor($subtotal * Carno_Wallet_Settings::get_cashback_ratio());
 
             if ($cashback_amount > 0) {
-                Carno_Wallet_Helpers::add_to_balance($user_id, $cashback_amount);
+                $balance_before = Carno_Wallet_Helpers::get_user_balance($user_id);
+                $balance_after  = Carno_Wallet_Helpers::add_to_balance($user_id, $cashback_amount);
+                $actual_added   = $balance_after - $balance_before;
+
                 $order->update_meta_data(CARNO_WALLET_ORDER_CASHBACK_KEY, true);
-                $order->add_order_note(
-                    sprintf('🎁 کش‌بک %s%% سبد خرید: %s به کیف پول اضافه شد | موجودی جدید: %s',
-                        intval(Carno_Wallet_Settings::get_cashback_ratio() * 100),
-                        Carno_Wallet_Helpers::format_currency($cashback_amount),
-                        Carno_Wallet_Helpers::format_currency(Carno_Wallet_Helpers::get_user_balance($user_id))
-                    )
-                );
+
+                if ($actual_added < $cashback_amount) {
+                    $order->add_order_note(
+                        sprintf('🎁 کش‌بک %s%% سبد خرید: %s محاسبه شد، اما به‌دلیل سقف موجودی کیف پول فقط %s اضافه شد | موجودی جدید: %s',
+                            intval(Carno_Wallet_Settings::get_cashback_ratio() * 100),
+                            Carno_Wallet_Helpers::format_currency($cashback_amount),
+                            Carno_Wallet_Helpers::format_currency($actual_added),
+                            Carno_Wallet_Helpers::format_currency($balance_after)
+                        )
+                    );
+                } else {
+                    $order->add_order_note(
+                        sprintf('🎁 کش‌بک %s%% سبد خرید: %s به کیف پول اضافه شد | موجودی جدید: %s',
+                            intval(Carno_Wallet_Settings::get_cashback_ratio() * 100),
+                            Carno_Wallet_Helpers::format_currency($cashback_amount),
+                            Carno_Wallet_Helpers::format_currency($balance_after)
+                        )
+                    );
+                }
             }
         }
 

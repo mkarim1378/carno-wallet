@@ -87,14 +87,28 @@ class Carno_Wallet_Core {
 
         // اگر بازپرداخت بیشتر یا برابر با مبلغ کیف پول باشد
         if ($refund_amount >= $wallet_amount) {
-            Carno_Wallet_Helpers::add_to_balance($user_id, $wallet_amount);
-            
+            $balance_before = Carno_Wallet_Helpers::get_user_balance($user_id);
+            $balance_after  = Carno_Wallet_Helpers::add_to_balance($user_id, $wallet_amount);
+            $actual_added   = $balance_after - $balance_before;
+
             $order->update_meta_data(CARNO_WALLET_ORDER_REFUNDED_KEY, true);
-            $order->add_order_note(
-                sprintf('💳 بازپرداخت به کیف پول: %s',
-                    Carno_Wallet_Helpers::format_currency($wallet_amount)
-                )
-            );
+
+            if ($actual_added < $wallet_amount) {
+                $order->add_order_note(
+                    sprintf('💳 بازپرداخت به کیف پول: %s محاسبه شد، اما به‌دلیل سقف موجودی کیف پول فقط %s اضافه شد | موجودی جدید: %s',
+                        Carno_Wallet_Helpers::format_currency($wallet_amount),
+                        Carno_Wallet_Helpers::format_currency($actual_added),
+                        Carno_Wallet_Helpers::format_currency($balance_after)
+                    )
+                );
+            } else {
+                $order->add_order_note(
+                    sprintf('💳 بازپرداخت به کیف پول: %s',
+                        Carno_Wallet_Helpers::format_currency($wallet_amount)
+                    )
+                );
+            }
+
             $order->save();
         }
     }

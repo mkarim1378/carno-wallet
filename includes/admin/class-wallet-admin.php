@@ -176,6 +176,12 @@ class Carno_Wallet_Admin {
 
         if (!empty($_GET['success']) && $_GET['success'] === 'balance_updated') {
             echo '<div class="notice notice-success is-dismissible"><p>✅ موجودی کاربر با موفقیت بروزرسانی شد.</p></div>';
+
+            if (isset($_GET['capped'])) {
+                echo '<div class="notice notice-warning is-dismissible"><p>⚠️ مقدار وارد شده بیشتر از سقف موجودی کیف پول بود؛ موجودی نهایی به <strong>'
+                    . esc_html(Carno_Wallet_Helpers::format_currency(intval($_GET['capped'])))
+                    . '</strong> محدود شد.</p></div>';
+            }
         }
 
         $errors = [
@@ -344,9 +350,15 @@ class Carno_Wallet_Admin {
         }
 
         $new_balance = floatval($_POST['new_balance'] ?? 0);
+        $clamped     = Carno_Wallet_Helpers::clamp_to_max_balance($new_balance);
         Carno_Wallet_Helpers::set_user_balance($user_id, $new_balance);
 
-        wp_redirect(add_query_arg(['page' => 'user-wallet', 'success' => 'balance_updated'], admin_url('admin.php')));
+        $redirect_args = ['page' => 'user-wallet', 'success' => 'balance_updated'];
+        if ($clamped < $new_balance) {
+            $redirect_args['capped'] = intval($clamped);
+        }
+
+        wp_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
         exit;
     }
 
@@ -407,8 +419,14 @@ class Carno_Wallet_Admin {
             $user = get_user_by('login', $username) ?: get_user_by('email', $username);
 
             if ($user) {
+                $clamped = Carno_Wallet_Helpers::clamp_to_max_balance($amount);
                 Carno_Wallet_Helpers::set_user_balance($user->ID, $amount);
-                $updated_list[] = $username;
+
+                if ($clamped < $amount) {
+                    $updated_list[] = $username . ' (سقف موجودی اعمال شد: ' . Carno_Wallet_Helpers::format_currency($clamped) . ')';
+                } else {
+                    $updated_list[] = $username;
+                }
             } else {
                 $failed_list[] = $username;
             }
