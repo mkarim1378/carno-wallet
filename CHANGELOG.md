@@ -2,6 +2,12 @@
 
 All notable changes to this plugin are documented in this file.
 
+## [1.8.1]
+
+### Added
+- "Test SMS" tool in the cashback SMS settings tab: enter a mobile number and an order ID to immediately (synchronously) send that order's cashback message to the given number, with a success/error notice and a log entry (`sms_test` channel).
+- Order's actual cashback amount is now stored as order meta (`_carno_wallet_cashback_amount`) for accurate reuse in the test tool (falls back to an estimate from subtotal × current cashback ratio for older orders).
+
 ## [1.8.0]
 
 ### Added

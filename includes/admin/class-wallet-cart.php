@@ -233,6 +233,7 @@ class Carno_Wallet_Cart {
                 $actual_added   = $balance_after - $balance_before;
 
                 $order->update_meta_data(CARNO_WALLET_ORDER_CASHBACK_KEY, true);
+                $order->update_meta_data(CARNO_WALLET_ORDER_CASHBACK_AMOUNT_KEY, $actual_added);
 
                 if ($actual_added < $cashback_amount) {
                     $order->add_order_note(

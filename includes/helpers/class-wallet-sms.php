@@ -94,6 +94,76 @@ class Carno_Wallet_SMS {
     }
 
     /**
+     * ساخت متن پیامک کش‌بک از روی الگوی تنظیمات
+     *
+     * @param int    $order_id
+     * @param string $mobile
+     * @param float  $amount
+     * @param float  $balance_after
+     * @param string $name
+     * @return string
+     */
+    public static function build_message($order_id, $mobile, $amount, $balance_after, $name = '') {
+        $vars = [
+            'amount'    => Carno_Wallet_Helpers::format_currency($amount),
+            'balance'   => Carno_Wallet_Helpers::format_currency($balance_after),
+            'order_id'  => $order_id,
+            'name'      => $name,
+            'mobile'    => $mobile,
+            'site_name' => get_bloginfo('name'),
+        ];
+
+        return self::render_template(Carno_Wallet_Settings::get_cashback_sms_template(), $vars);
+    }
+
+    /**
+     * مقدار کش‌بک ثبت‌شده روی یک سفارش (در صورت نبودن، تخمین از روی subtotal و درصد فعلی کش‌بک)
+     *
+     * @param WC_Order $order
+     * @return float
+     */
+    public static function get_order_cashback_amount($order) {
+        $amount = floatval($order->get_meta(CARNO_WALLET_ORDER_CASHBACK_AMOUNT_KEY, true));
+        if ($amount > 0) {
+            return $amount;
+        }
+
+        return floor(floatval($order->get_subtotal()) * Carno_Wallet_Settings::get_cashback_ratio());
+    }
+
+    /**
+     * ارسال آزمایشی پیامک کش‌بک یک سفارش به یک شماره دلخواه (سینک)
+     *
+     * @param string $mobile
+     * @param int    $order_id
+     * @return array{success: bool, value: string|null, error: string|null, message?: string}
+     */
+    public static function send_test($mobile, $order_id) {
+        $order = wc_get_order($order_id);
+        if (!$order) {
+            return ['success' => false, 'value' => null, 'error' => 'سفارش یافت نشد'];
+        }
+
+        $amount  = self::get_order_cashback_amount($order);
+        $user_id = $order->get_user_id();
+        $balance = $user_id ? Carno_Wallet_Helpers::get_user_balance($user_id) : 0;
+        $name    = $user_id ? get_userdata($user_id)->display_name : $order->get_billing_first_name();
+
+        $message = self::build_message($order_id, $mobile, $amount, $balance, $name);
+        $result  = self::send($mobile, $message);
+        $result['message'] = $message;
+
+        Carno_Wallet_Logger::log(
+            $result['success'] ? 'info' : 'error',
+            'sms_test',
+            sprintf('پیامک آزمایشی برای سفارش #%d به %s %s', $order_id, $mobile, $result['success'] ? 'ارسال شد' : ('ناموفق بود: ' . $result['error'])),
+            ['order_id' => $order_id, 'mobile' => $mobile, 'amount' => $amount, 'result' => $result]
+        );
+
+        return $result;
+    }
+
+    /**
      * هندلر اکشن آسینک: ارسال پیامک کش‌بک به کاربر
      *
      * @param int   $user_id
@@ -110,18 +180,8 @@ class Carno_Wallet_SMS {
             return;
         }
 
-        $mobile = $user->user_login;
-
-        $vars = [
-            'amount'    => Carno_Wallet_Helpers::format_currency($amount),
-            'balance'   => Carno_Wallet_Helpers::format_currency($balance_after),
-            'order_id'  => $order_id,
-            'name'      => $user->display_name,
-            'mobile'    => $mobile,
-            'site_name' => get_bloginfo('name'),
-        ];
-
-        $message = self::render_template(Carno_Wallet_Settings::get_cashback_sms_template(), $vars);
+        $mobile  = $user->user_login;
+        $message = self::build_message($order_id, $mobile, $amount, $balance_after, $user->display_name);
         $result  = self::send($mobile, $message);
 
         $context = ['user_id' => $user_id, 'order_id' => $order_id, 'mobile' => $mobile, 'amount' => $amount, 'result' => $result];

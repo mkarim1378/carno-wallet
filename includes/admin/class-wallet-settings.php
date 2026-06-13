@@ -44,6 +44,26 @@ class Carno_Wallet_Settings {
     private function __construct() {
         add_action('admin_menu',  [$this, 'add_settings_page'], 20);
         add_action('admin_init',  [$this, 'register_settings']);
+        add_action('admin_init',  [$this, 'handle_test_sms']);
+    }
+
+    /**
+     * پردازش فرم «آزمایش ارسال پیامک» در تب پیامک کش‌بک
+     */
+    public function handle_test_sms() {
+        if (!isset($_POST['carno_wallet_test_sms_nonce'])) return;
+        if (!current_user_can('manage_options')) return;
+        if (!wp_verify_nonce($_POST['carno_wallet_test_sms_nonce'], 'carno_wallet_test_sms')) return;
+
+        $mobile   = sanitize_text_field($_POST['test_sms_mobile'] ?? '');
+        $order_id = intval($_POST['test_sms_order_id'] ?? 0);
+
+        $result = Carno_Wallet_SMS::send_test($mobile, $order_id);
+
+        set_transient('carno_wallet_test_sms_result_' . get_current_user_id(), $result, 60);
+
+        wp_safe_redirect(add_query_arg(['page' => 'user-wallet-settings', 'tab' => 'sms'], admin_url('admin.php')));
+        exit;
     }
 
     // ─── منوی ادمین ────────────────────────────────────────────
@@ -304,9 +324,56 @@ class Carno_Wallet_Settings {
                         update();
                     })();
                     </script>
+                    <?php $this->render_test_sms_box(); ?>
                 <?php endif; ?>
             <?php endif; ?>
         </div>
+        <?php
+    }
+
+    /**
+     * باکس «آزمایش ارسال پیامک» - ارسال پیامک کش‌بک یک سفارش به یک شماره دلخواه
+     */
+    private function render_test_sms_box() {
+        $transient_key = 'carno_wallet_test_sms_result_' . get_current_user_id();
+        $result        = get_transient($transient_key);
+
+        if ($result !== false) {
+            delete_transient($transient_key);
+
+            if (!empty($result['success'])) {
+                printf(
+                    '<div class="notice notice-success is-dismissible"><p>✅ پیامک آزمایشی با موفقیت ارسال شد.<br>متن ارسال‌شده: %s</p></div>',
+                    nl2br(esc_html($result['message'] ?? ''))
+                );
+            } else {
+                printf(
+                    '<div class="notice notice-error is-dismissible"><p>❌ ارسال پیامک آزمایشی ناموفق بود: %s</p></div>',
+                    esc_html($result['error'] ?? 'خطای نامشخص')
+                );
+            }
+        }
+        ?>
+        <hr>
+        <h2>🧪 آزمایش ارسال پیامک</h2>
+        <p class="description">با وارد کردن شماره موبایل و شناسه سفارش، پیامک کش‌بک همان سفارش (بر اساس مقدار کش‌بک ثبت‌شده برای آن سفارش و الگوی بالا) به‌صورت آزمایشی و فوری به شماره وارد‌شده ارسال می‌شود.</p>
+        <form method="post">
+            <?php wp_nonce_field('carno_wallet_test_sms', 'carno_wallet_test_sms_nonce'); ?>
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><label for="test_sms_mobile">شماره موبایل</label></th>
+                    <td><input type="text" id="test_sms_mobile" name="test_sms_mobile" class="regular-text" placeholder="09xxxxxxxxx" required></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="test_sms_order_id">شناسه سفارش</label></th>
+                    <td>
+                        <input type="number" id="test_sms_order_id" name="test_sms_order_id" class="regular-text" min="1" required>
+                        <p class="description">شناسه سفارشی که کش‌بک در آن انجام شده (برای متغیرهای {amount}، {balance}، {order_id} استفاده می‌شود).</p>
+                    </td>
+                </tr>
+            </table>
+            <?php submit_button('ارسال پیامک آزمایشی', 'secondary'); ?>
+        </form>
         <?php
     }
 
