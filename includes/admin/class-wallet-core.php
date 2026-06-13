@@ -88,7 +88,7 @@ class Carno_Wallet_Core {
         // اگر بازپرداخت بیشتر یا برابر با مبلغ کیف پول باشد
         if ($refund_amount >= $wallet_amount) {
             $balance_before = Carno_Wallet_Helpers::get_user_balance($user_id);
-            $balance_after  = Carno_Wallet_Helpers::add_to_balance($user_id, $wallet_amount);
+            $balance_after  = Carno_Wallet_Helpers::add_to_balance($user_id, $wallet_amount, 'refund', 'بازگشت مبلغ کیف پول به دلیل بازپرداخت سفارش', $order->get_id());
             $actual_added   = $balance_after - $balance_before;
 
             $order->update_meta_data(CARNO_WALLET_ORDER_REFUNDED_KEY, true);

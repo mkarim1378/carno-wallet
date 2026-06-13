@@ -2,14 +2,14 @@
 /**
  * Plugin Name: کارنو ولت - کیف پول کاربران کارنو مهارت
  * Description: مدیریت کیف پول کاربران آکادمی کارنو مهارت با قابلیت آپلود اکسل
- * Version: 1.6.0
+ * Version: 1.7.0
  * Author: Carno Maharat
  * Text Domain: carno-wallet
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('CARNO_WALLET_VERSION',  '1.6.0');
+define('CARNO_WALLET_VERSION',  '1.7.0');
 define('CARNO_WALLET_PATH',     plugin_dir_path(__FILE__));
 define('CARNO_WALLET_URL',      plugin_dir_url(__FILE__));
 define('CARNO_WALLET_META_KEY', 'user_wallet_balance');
@@ -23,6 +23,7 @@ define('CARNO_WALLET_ORDER_REFUNDED_KEY',    '_carno_wallet_refunded');
 define('CARNO_WALLET_ORDER_CASHBACK_KEY',    '_carno_wallet_cashback_applied');
 
 // ─── بارگذاری Helpers ───────────────────────────────────────
+require_once CARNO_WALLET_PATH . 'includes/helpers/class-wallet-transactions.php';
 require_once CARNO_WALLET_PATH . 'includes/helpers/class-helpers.php';
 
 // ─── بارگذاری Settings (باید قبل از سایر کلاس‌ها بارگذاری شود) ──
@@ -38,15 +39,21 @@ require_once CARNO_WALLET_PATH . 'includes/admin/class-wallet-order.php';
 // ─── بارگذاری API ───────────────────────────────────────────
 require_once CARNO_WALLET_PATH . 'includes/api/class-wallet-api.php';
 
+// ─── ایجاد/به‌روزرسانی جدول تراکنش‌ها هنگام فعال‌سازی افزونه ──
+register_activation_hook(__FILE__, ['Carno_Wallet_Transactions', 'maybe_install']);
+
 /**
  * راه‌اندازی افزونه
- * 
+ *
  * باگ‌فیکس: راه‌اندازی بعد از plugins_loaded تا WooCommerce حتماً لود شده باشد.
  */
 add_action('plugins_loaded', function () {
+    // اطمینان از وجود جدول تراکنش‌ها برای نصب‌های قبلی (بدون نیاز به فعال‌سازی مجدد)
+    Carno_Wallet_Transactions::maybe_install();
+
     // بارگذاری Gateway (در اینجا WooCommerce حتماً لود شده است)
     require_once CARNO_WALLET_PATH . 'includes/gateway/class-wallet-gateway.php';
-    
+
     // Helpers از ابتدا موجود هستند
     
     // Settings باید اول بارگذاری شود

@@ -23,14 +23,28 @@ class Carno_Wallet_Helpers {
     }
 
     /**
-     * تنظیم موجودی کاربر (با اعمال سقف موجودی در صورت تنظیم)
+     * تنظیم موجودی کاربر (با اعمال سقف موجودی در صورت تنظیم) و ثبت تراکنش
      *
      * @param int $user_id شناسه کاربر
      * @param float $amount مقدار جدید
+     * @param string $type نوع تراکنش برای ثبت در جدول تراکنش‌ها (پیش‌فرض: admin_adjustment)
+     * @param string $description توضیح تراکنش
+     * @param int|null $order_id شناسه سفارش مرتبط (اختیاری)
      * @return bool نتیجه عملیات
      */
-    public static function set_user_balance($user_id, $amount) {
-        return update_user_meta((int) $user_id, CARNO_WALLET_META_KEY, self::clamp_to_max_balance($amount));
+    public static function set_user_balance($user_id, $amount, $type = 'admin_adjustment', $description = '', $order_id = null) {
+        $user_id     = (int) $user_id;
+        $old_balance = self::get_user_balance($user_id);
+        $new_balance = self::clamp_to_max_balance($amount);
+
+        $result = update_user_meta($user_id, CARNO_WALLET_META_KEY, $new_balance);
+
+        $delta = $new_balance - $old_balance;
+        if (abs($delta) >= 0.01) {
+            Carno_Wallet_Transactions::log($user_id, $type, $delta, $new_balance, $order_id, $description);
+        }
+
+        return $result;
     }
 
     /**
@@ -53,28 +67,36 @@ class Carno_Wallet_Helpers {
 
     /**
      * کسر موجودی از کیف پول کاربر
-     * 
+     *
      * @param int $user_id شناسه کاربر
      * @param float $amount مقدار برای کسر
+     * @param string $type نوع تراکنش برای ثبت در جدول تراکنش‌ها (پیش‌فرض: purchase)
+     * @param string $description توضیح تراکنش
+     * @param int|null $order_id شناسه سفارش مرتبط (اختیاری)
      * @return float موجودی کسر‌شده‌ی جدید
      */
-    public static function deduct_balance($user_id, $amount) {
-        $current = self::get_user_balance($user_id);
+    public static function deduct_balance($user_id, $amount, $type = 'purchase', $description = '', $order_id = null) {
+        $current     = self::get_user_balance($user_id);
         $new_balance = max(0, $current - floatval($amount));
-        return self::set_user_balance($user_id, $new_balance) ? $new_balance : $current;
+        self::set_user_balance($user_id, $new_balance, $type, $description, $order_id);
+        return self::get_user_balance($user_id);
     }
 
     /**
      * اضافه‌کردن موجودی به کیف پول کاربر
-     * 
+     *
      * @param int $user_id شناسه کاربر
      * @param float $amount مقدار برای اضافه‌کردن
+     * @param string $type نوع تراکنش برای ثبت در جدول تراکنش‌ها (پیش‌فرض: admin_adjustment)
+     * @param string $description توضیح تراکنش
+     * @param int|null $order_id شناسه سفارش مرتبط (اختیاری)
      * @return float موجودی جدید
      */
-    public static function add_to_balance($user_id, $amount) {
+    public static function add_to_balance($user_id, $amount, $type = 'admin_adjustment', $description = '', $order_id = null) {
         $current     = self::get_user_balance($user_id);
         $new_balance = self::clamp_to_max_balance($current + floatval($amount));
-        return self::set_user_balance($user_id, $new_balance) ? $new_balance : $current;
+        self::set_user_balance($user_id, $new_balance, $type, $description, $order_id);
+        return self::get_user_balance($user_id);
     }
 
     /**

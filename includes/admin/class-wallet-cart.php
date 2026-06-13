@@ -134,8 +134,8 @@ class Carno_Wallet_Cart {
             $current_balance = Carno_Wallet_Helpers::get_user_balance($user_id);
             
             if ($current_balance >= $deduct_amount) {
-                Carno_Wallet_Helpers::deduct_balance($user_id, $deduct_amount);
-                
+                Carno_Wallet_Helpers::deduct_balance($user_id, $deduct_amount, 'purchase', 'پرداخت کامل سفارش از کیف پول', $order->get_id());
+
                 $order->set_payment_method_title('پرداخت از کیف پول');
                 $order->set_status('processing');
                 
@@ -211,7 +211,7 @@ class Carno_Wallet_Cart {
             return;
         }
 
-        Carno_Wallet_Helpers::deduct_balance($user_id, $wallet_amount);
+        Carno_Wallet_Helpers::deduct_balance($user_id, $wallet_amount, 'purchase', 'کسر بهای سفارش از کیف پول', $order_id);
         $order->update_meta_data(CARNO_WALLET_ORDER_DEDUCTED_KEY, true);
 
         $new_balance = Carno_Wallet_Helpers::get_user_balance($user_id);
@@ -229,7 +229,7 @@ class Carno_Wallet_Cart {
 
             if ($cashback_amount > 0) {
                 $balance_before = Carno_Wallet_Helpers::get_user_balance($user_id);
-                $balance_after  = Carno_Wallet_Helpers::add_to_balance($user_id, $cashback_amount);
+                $balance_after  = Carno_Wallet_Helpers::add_to_balance($user_id, $cashback_amount, 'cashback', 'کش‌بک خرید', $order_id);
                 $actual_added   = $balance_after - $balance_before;
 
                 $order->update_meta_data(CARNO_WALLET_ORDER_CASHBACK_KEY, true);

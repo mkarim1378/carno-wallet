@@ -76,7 +76,7 @@ class Carno_Wallet_Gateway extends WC_Payment_Gateway {
         }
 
         // کسر کردن موجودی
-        Carno_Wallet_Helpers::deduct_balance($user_id, $wallet_deducted);
+        Carno_Wallet_Helpers::deduct_balance($user_id, $wallet_deducted, 'purchase', 'پرداخت سفارش از کیف پول', $order_id);
         $order->update_meta_data(CARNO_WALLET_ORDER_DEDUCTED_KEY, true);
         $order->save();
 

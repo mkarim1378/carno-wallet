@@ -237,7 +237,53 @@ class Carno_Wallet_Admin {
                        min="0" step="1000" style="width: 200px; margin-top: 5px;">
                 <button type="submit" class="button button-primary" style="margin-right: 8px;">✏️ بروزرسانی موجودی</button>
             </form>
+
+            <?php $this->render_user_transactions($user->ID); ?>
         </div>
+        <?php
+    }
+
+    /**
+     * رندر آخرین تراکنش‌های کیف پول یک کاربر
+     */
+    private function render_user_transactions($user_id) {
+        $transactions = Carno_Wallet_Transactions::get_user_transactions($user_id, 10);
+        if (empty($transactions)) return;
+
+        $type_labels = [
+            'migration_opening_balance' => 'مانده افتتاحیه',
+            'admin_adjustment'          => 'ویرایش دستی',
+            'excel_import'              => 'شارژ اکسل',
+            'cashback'                  => 'کش‌بک',
+            'refund'                    => 'بازپرداخت',
+            'purchase'                  => 'خرید',
+        ];
+        ?>
+        <h4 style="margin-top: 20px;">📜 آخرین تراکنش‌ها</h4>
+        <table class="widefat striped" style="max-width: 600px;">
+            <thead>
+                <tr>
+                    <th>تاریخ</th>
+                    <th>نوع</th>
+                    <th>مقدار</th>
+                    <th>موجودی پس از تراکنش</th>
+                    <th>توضیح</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($transactions as $tx): ?>
+                    <tr>
+                        <td><?php echo esc_html(date_i18n('Y-m-d H:i', strtotime($tx->created_at))); ?></td>
+                        <td><?php echo esc_html($type_labels[$tx->type] ?? $tx->type); ?></td>
+                        <td style="color: <?php echo $tx->amount >= 0 ? '#1a7f37' : '#d63638'; ?>;">
+                            <?php echo ($tx->amount >= 0 ? '+' : '') . Carno_Wallet_Helpers::format_currency($tx->amount); ?>
+                        </td>
+                        <td><?php echo Carno_Wallet_Helpers::format_currency($tx->balance_after); ?></td>
+                        <td><?php echo esc_html($tx->description); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
         <?php
     }
 
@@ -351,7 +397,7 @@ class Carno_Wallet_Admin {
 
         $new_balance = floatval($_POST['new_balance'] ?? 0);
         $clamped     = Carno_Wallet_Helpers::clamp_to_max_balance($new_balance);
-        Carno_Wallet_Helpers::set_user_balance($user_id, $new_balance);
+        Carno_Wallet_Helpers::set_user_balance($user_id, $new_balance, 'admin_adjustment', 'ویرایش دستی موجودی توسط مدیر');
 
         $redirect_args = ['page' => 'user-wallet', 'success' => 'balance_updated'];
         if ($clamped < $new_balance) {
@@ -420,7 +466,7 @@ class Carno_Wallet_Admin {
 
             if ($user) {
                 $clamped = Carno_Wallet_Helpers::clamp_to_max_balance($amount);
-                Carno_Wallet_Helpers::set_user_balance($user->ID, $amount);
+                Carno_Wallet_Helpers::set_user_balance($user->ID, $amount, 'excel_import', 'شارژ از طریق آپلود فایل اکسل');
 
                 if ($clamped < $amount) {
                     $updated_list[] = $username . ' (سقف موجودی اعمال شد: ' . Carno_Wallet_Helpers::format_currency($clamped) . ')';
