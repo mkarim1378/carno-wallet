@@ -293,7 +293,7 @@ class Carno_Wallet_Admin {
      * اضافه‌کردن ستون موجودی به جدول کاربران
      */
     public function users_column_header($columns) {
-        $columns['wallet_balance'] = '💳 موجودی کیف پول';
+        $columns['wallet_balance'] = 'موجودی کیف پول';
         return $columns;
     }
 

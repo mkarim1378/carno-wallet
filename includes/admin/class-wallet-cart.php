@@ -252,6 +252,16 @@ class Carno_Wallet_Cart {
                         )
                     );
                 }
+
+                // ارسال آسینک پیامک اطلاع‌رسانی کش‌بک (در صورت فعال‌بودن در تنظیمات)
+                if ($actual_added > 0 && Carno_Wallet_Settings::is_cashback_sms_enabled() && function_exists('as_schedule_single_action')) {
+                    as_schedule_single_action(time(), 'carno_wallet_send_cashback_sms', [
+                        'user_id'       => $user_id,
+                        'order_id'      => $order_id,
+                        'amount'        => $actual_added,
+                        'balance_after' => $balance_after,
+                    ], 'carno-wallet');
+                }
             }
         }
 

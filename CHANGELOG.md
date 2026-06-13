@@ -2,6 +2,15 @@
 
 All notable changes to this plugin are documented in this file.
 
+## [1.8.0]
+
+### Added
+- SMS notification sent to the user (via Payamak-Panel SmartSMS REST API) whenever a wallet cashback is applied, using a fully configurable message template with placeholders (`{name}`, `{amount}`, `{balance}`, `{order_id}`, `{mobile}`, `{site_name}`).
+- New "پیامک کش‌بک" settings tab with enable toggle (auto hides/shows dependent fields), Payamak credentials (username, ApiKey, sender numbers), and editable message template.
+- Sending is fully asynchronous via Action Scheduler (`as_schedule_single_action`) so checkout/order processing is never delayed or blocked by SMS delivery.
+- New centralized plugin log table (`wp_carno_wallet_logs`) recording SMS send results (success/error), viewable in a new "لاگ‌ها" settings tab with pagination, and auto-pruned after 30 days via a daily Action Scheduler task.
+- Order notes added for both successful and failed cashback SMS deliveries.
+
 ## [1.7.0]
 
 ### Added

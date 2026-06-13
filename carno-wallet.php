@@ -2,14 +2,14 @@
 /**
  * Plugin Name: کارنو ولت - کیف پول کاربران کارنو مهارت
  * Description: مدیریت کیف پول کاربران آکادمی کارنو مهارت با قابلیت آپلود اکسل
- * Version: 1.7.0
+ * Version: 1.8.0
  * Author: Carno Maharat
  * Text Domain: carno-wallet
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('CARNO_WALLET_VERSION',  '1.7.0');
+define('CARNO_WALLET_VERSION',  '1.8.0');
 define('CARNO_WALLET_PATH',     plugin_dir_path(__FILE__));
 define('CARNO_WALLET_URL',      plugin_dir_url(__FILE__));
 define('CARNO_WALLET_META_KEY', 'user_wallet_balance');
@@ -24,7 +24,9 @@ define('CARNO_WALLET_ORDER_CASHBACK_KEY',    '_carno_wallet_cashback_applied');
 
 // ─── بارگذاری Helpers ───────────────────────────────────────
 require_once CARNO_WALLET_PATH . 'includes/helpers/class-wallet-transactions.php';
+require_once CARNO_WALLET_PATH . 'includes/helpers/class-wallet-logger.php';
 require_once CARNO_WALLET_PATH . 'includes/helpers/class-helpers.php';
+require_once CARNO_WALLET_PATH . 'includes/helpers/class-wallet-sms.php';
 
 // ─── بارگذاری Settings (باید قبل از سایر کلاس‌ها بارگذاری شود) ──
 require_once CARNO_WALLET_PATH . 'includes/admin/class-wallet-settings.php';
@@ -39,8 +41,9 @@ require_once CARNO_WALLET_PATH . 'includes/admin/class-wallet-order.php';
 // ─── بارگذاری API ───────────────────────────────────────────
 require_once CARNO_WALLET_PATH . 'includes/api/class-wallet-api.php';
 
-// ─── ایجاد/به‌روزرسانی جدول تراکنش‌ها هنگام فعال‌سازی افزونه ──
+// ─── ایجاد/به‌روزرسانی جدول تراکنش‌ها و لاگ‌ها هنگام فعال‌سازی افزونه ──
 register_activation_hook(__FILE__, ['Carno_Wallet_Transactions', 'maybe_install']);
+register_activation_hook(__FILE__, ['Carno_Wallet_Logger', 'maybe_install']);
 
 /**
  * راه‌اندازی افزونه
@@ -48,29 +51,42 @@ register_activation_hook(__FILE__, ['Carno_Wallet_Transactions', 'maybe_install'
  * باگ‌فیکس: راه‌اندازی بعد از plugins_loaded تا WooCommerce حتماً لود شده باشد.
  */
 add_action('plugins_loaded', function () {
-    // اطمینان از وجود جدول تراکنش‌ها برای نصب‌های قبلی (بدون نیاز به فعال‌سازی مجدد)
+    // اطمینان از وجود جداول برای نصب‌های قبلی (بدون نیاز به فعال‌سازی مجدد)
     Carno_Wallet_Transactions::maybe_install();
+    Carno_Wallet_Logger::maybe_install();
 
     // بارگذاری Gateway (در اینجا WooCommerce حتماً لود شده است)
     require_once CARNO_WALLET_PATH . 'includes/gateway/class-wallet-gateway.php';
 
     // Helpers از ابتدا موجود هستند
-    
+
     // Settings باید اول بارگذاری شود
     Carno_Wallet_Settings::get_instance();
 
     // Core باید دوم بارگذاری شود
     Carno_Wallet_Core::get_instance();
-    
+
     // Cart management
     Carno_Wallet_Cart::get_instance();
 
     // Admin interface
     Carno_Wallet_Admin::get_instance();
-    
+
     // Order management
     Carno_Wallet_Order::get_instance();
-    
+
     // REST API
     Carno_Wallet_API::get_instance();
+
+    // پیامک کش‌بک (هندلر اکشن آسینک)
+    Carno_Wallet_SMS::init();
+
+    // زمان‌بندی پاک‌سازی روزانه لاگ‌های قدیمی‌تر از ۳۰ روز
+    if (function_exists('as_has_scheduled_action') && function_exists('as_schedule_recurring_action')) {
+        if (!as_has_scheduled_action('carno_wallet_cleanup_logs', [], 'carno-wallet')) {
+            as_schedule_recurring_action(time(), DAY_IN_SECONDS, 'carno_wallet_cleanup_logs', [], 'carno-wallet');
+        }
+    }
 });
+
+add_action('carno_wallet_cleanup_logs', ['Carno_Wallet_Logger', 'cleanup']);

@@ -51,3 +51,7 @@ wp-config.php
 /carno-plugin.php
 /.claude
 *.zip
+
+# Temporary planning docs
+PLAN_SMS_CASHBACK.md
+sms-docs.md
