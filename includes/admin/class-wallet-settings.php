@@ -15,7 +15,11 @@ class Carno_Wallet_Settings {
     private static $cache    = null;
 
     private static $defaults = [
-        'wallet_max_ratio'    => 80,
+        'wallet_max_ratio'              => 80,
+        'wallet_max_mode'               => 'percent', // 'percent' | 'fixed'
+        'wallet_max_fixed_amount'       => 0,         // مبلغ ثابت سقف (تومان)
+        'wallet_max_excluded_products'  => [],        // آرایه‌ای از Product ID
+        'wallet_max_excluded_categories'=> [],        // آرایه‌ای از Term ID دسته‌بندی محصول
         'cashback_enabled'    => '1',
         'cashback_ratio'      => 10,
         'deduction_statuses'  => ['processing', 'completed'],
@@ -45,6 +49,22 @@ class Carno_Wallet_Settings {
         add_action('admin_menu',  [$this, 'add_settings_page'], 20);
         add_action('admin_init',  [$this, 'register_settings']);
         add_action('admin_init',  [$this, 'handle_test_sms']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
+    }
+
+    /**
+     * بارگذاری اسکریپت‌های Select2/SelectWoo ووکامرس در صفحه تنظیمات کیف پول
+     */
+    public function enqueue_assets($hook) {
+        // صفحه تنظیمات از طریق admin.php?page=user-wallet-settings باز می‌شود
+        if (empty($_GET['page']) || $_GET['page'] !== 'user-wallet-settings') {
+            return;
+        }
+
+        if (function_exists('WC')) {
+            wp_enqueue_script('wc-enhanced-select');
+            wp_enqueue_style('woocommerce_admin_styles');
+        }
     }
 
     /**
@@ -127,12 +147,112 @@ class Carno_Wallet_Settings {
     // ─── رندر فیلدها ───────────────────────────────────────────
 
     public function field_max_ratio() {
-        $v = intval(self::fetch('wallet_max_ratio'));
+        $mode          = self::get_max_mode();
+        $ratio         = intval(self::fetch('wallet_max_ratio'));
+        $fixed         = intval(self::fetch('wallet_max_fixed_amount'));
+        $products      = self::get_max_excluded_products();
+        $categories    = self::get_max_excluded_categories();
+        $opt           = self::OPTION_KEY;
+
+        // ── انتخاب حالت سقف ──
+        printf(
+            '<label style="display:block;margin-bottom:8px;"><input type="radio" name="%s[wallet_max_mode]" value="percent" %s> درصدی از مبلغ سبد</label>',
+            $opt, checked('percent', $mode, false)
+        );
+        printf(
+            '<label style="display:block;margin-bottom:4px;"><input type="radio" name="%s[wallet_max_mode]" value="fixed" %s> مبلغ ثابت (تومان)</label>',
+            $opt, checked('fixed', $mode, false)
+        );
+
+        // ── بلوک حالت درصدی ──
+        echo '<div id="carno-wallet-max-percent" class="carno-wallet-max-block" style="margin:8px 0 8px 24px;' . ($mode === 'percent' ? '' : 'display:none;') . '">';
         printf(
             '<input type="number" name="%s[wallet_max_ratio]" value="%d" min="1" max="100" step="1" style="width:70px"> %%'
             . '<p class="description">حداکثر درصد از مبلغ سبد که می‌توان از کیف پول پرداخت کرد. (پیش‌فرض: ۸۰٪)</p>',
-            self::OPTION_KEY, $v
+            $opt, $ratio
         );
+        echo '</div>';
+
+        // ── بلوک حالت مبلغ ثابت ──
+        echo '<div id="carno-wallet-max-fixed" class="carno-wallet-max-block" style="margin:8px 0 8px 24px;' . ($mode === 'fixed' ? '' : 'display:none;') . '">';
+
+        // مبلغ ثابت
+        printf(
+            '<label style="display:block;margin-bottom:4px;">سقف مبلغ کیف پول:</label>'
+            . '<input type="number" name="%s[wallet_max_fixed_amount]" value="%d" min="0" step="1000" style="width:140px"> تومان'
+            . '<p class="description">حداکثر مبلغی که از کیف پول برای هر سفارش کسر می‌شود، فارغ از موجودی کاربر.</p>',
+            $opt, $fixed
+        );
+
+        // انتخاب محصولات مستثنی
+        echo '<label style="display:block;margin-top:12px;">محصولات مستثنی (کاملاً از کیف پول خارج می‌شوند):</label>';
+        $selected_products = '';
+        if (!empty($products)) {
+            foreach ($products as $pid) {
+                $p = wc_get_product($pid);
+                if ($p) {
+                    printf('<option value="%d" selected="selected">#%d — %s</option>', $pid, $pid, esc_html(wp_strip_all_tags($p->get_formatted_name())));
+                }
+            }
+        }
+        printf(
+            '<select name="%s[wallet_max_excluded_products][]" multiple="multiple" class="wc-product-search" data-placeholder="جستجوی محصول…" data-action="woocommerce_json_search_products_and_variations" style="width:50%%;min-width:300px;">%s</select>'
+            . '<p class="description">محصولاتی که نمی‌خواهید با کیف پول پرداخت شوند را اضافه کنید (مثلاً محصولات ارزان‌تر از سقف ثابت که کاربر می‌تواند رایگان دریافت کند).</p>',
+            $opt, $selected_products
+        );
+
+        // انتخاب دسته‌های مستثنی
+        echo '<label style="display:block;margin-top:12px;">دسته‌بندی‌های مستثنی:</label>';
+        $selected_categories = '';
+        if (!empty($categories)) {
+            foreach ($categories as $cid) {
+                $term = get_term($cid, 'product_cat');
+                if ($term && !is_wp_error($term)) {
+                    printf('<option value="%d" selected="selected">%s</option>', $cid, esc_html($term->name));
+                }
+            }
+        }
+        printf(
+            '<select name="%s[wallet_max_excluded_categories][]" multiple="multiple" class="wc-enhanced-select" data-placeholder="انتخاب دسته…" style="width:50%%;min-width:300px;">%s</select>'
+            . '<p class="description">تمام محصولات این دسته‌بندی‌ها از پرداخت کیف پول مستثنی می‌شوند.</p>',
+            $opt, $selected_categories
+        );
+
+        echo '</div>';
+
+        // ── اسکریپت نمایش/مخفی بلوک‌ها ──
+        ?>
+        <script>
+        (function () {
+            var radios = document.querySelectorAll('input[name="<?php echo esc_attr($opt); ?>[wallet_max_mode]"]');
+            var percentBlock = document.getElementById('carno-wallet-max-percent');
+            var fixedBlock   = document.getElementById('carno-wallet-max-fixed');
+            function update() {
+                var mode = document.querySelector('input[name="<?php echo esc_attr($opt); ?>[wallet_max_mode]"]:checked');
+                if (!mode) return;
+                var isPercent = mode.value === 'percent';
+                if (percentBlock) percentBlock.style.display = isPercent ? '' : 'none';
+                if (fixedBlock)   fixedBlock.style.display   = isPercent ? 'none' : '';
+            }
+            radios.forEach(function (r) { r.addEventListener('change', update); });
+            // مطمئن می‌شویم Select2 پس از رندر آماده است
+            if (window.jQuery) {
+                jQuery(function ($) {
+                    if ($.fn && $.fn.selectWoo) {
+                        $('.wc-product-search, .wc-enhanced-select').filter(':not(.select2-hidden-accessible)').each(function () {
+                            var $el = $(this);
+                            if ($el.hasClass('wc-product-search')) {
+                                $el.selectWoo($.extend({ minimumInputLength: 2 }, window.wc_select_props || {}));
+                            } else {
+                                $el.selectWoo();
+                            }
+                        });
+                    }
+                });
+            }
+        })();
+        </script>
+        <?php
     }
 
     public function field_cashback_enabled() {
@@ -432,7 +552,23 @@ class Carno_Wallet_Settings {
     public function sanitize($input) {
         $clean = [];
 
-        $clean['wallet_max_ratio']    = min(100, max(1, intval($input['wallet_max_ratio']   ?? self::$defaults['wallet_max_ratio'])));
+        $clean['wallet_max_ratio']         = min(100, max(1, intval($input['wallet_max_ratio']   ?? self::$defaults['wallet_max_ratio'])));
+        $clean['wallet_max_mode']          = ($input['wallet_max_mode'] ?? 'percent') === 'fixed' ? 'fixed' : 'percent';
+        $clean['wallet_max_fixed_amount']  = max(0, intval($input['wallet_max_fixed_amount'] ?? self::$defaults['wallet_max_fixed_amount']));
+
+        // محصولات مستثنی: فقط شناسه‌های عددی معتبر محصول
+        $raw_products = array_map('intval', (array) ($input['wallet_max_excluded_products'] ?? []));
+        $clean['wallet_max_excluded_products'] = array_values(array_filter(array_unique($raw_products), function ($pid) {
+            return $pid > 0 && wc_get_product($pid);
+        }));
+
+        // دسته‌های مستثنی: فقط Term IDهای معتبر product_cat
+        $raw_cats = array_map('intval', (array) ($input['wallet_max_excluded_categories'] ?? []));
+        $clean['wallet_max_excluded_categories'] = array_values(array_filter(array_unique($raw_cats), function ($cid) {
+            $term = get_term($cid, 'product_cat');
+            return $cid > 0 && $term && !is_wp_error($term);
+        }));
+
         $clean['cashback_ratio']      = min(100, max(1, intval($input['cashback_ratio']      ?? self::$defaults['cashback_ratio'])));
         $clean['max_balance']         = max(0, intval($input['max_balance'] ?? self::$defaults['max_balance']));
         $clean['cashback_enabled']    = !empty($input['cashback_enabled'])  ? '1' : '0';
@@ -469,6 +605,10 @@ class Carno_Wallet_Settings {
     }
 
     public static function get_max_ratio()           { return floatval(self::fetch('wallet_max_ratio'))  / 100; }
+    public static function get_max_mode()            { return self::fetch('wallet_max_mode') === 'fixed' ? 'fixed' : 'percent'; }
+    public static function get_max_fixed_amount()    { return floatval(self::fetch('wallet_max_fixed_amount')); }
+    public static function get_max_excluded_products()     { return array_filter(array_map('intval', (array) self::fetch('wallet_max_excluded_products'))); }
+    public static function get_max_excluded_categories()   { return array_filter(array_map('intval', (array) self::fetch('wallet_max_excluded_categories'))); }
     public static function get_cashback_ratio()      { return floatval(self::fetch('cashback_ratio'))     / 100; }
     public static function is_cashback_enabled()     { return self::fetch('cashback_enabled')  === '1'; }
     public static function get_deduction_statuses()  { return (array)  self::fetch('deduction_statuses'); }

@@ -30,6 +30,109 @@ class Carno_Wallet_Cart {
         add_action('woocommerce_thankyou', [$this, 'clear_wallet_session']);
     }
 
+    // ─── توابع کمکی محاسبه سقف کیف پول ────────────────────────────
+
+    /**
+     * آیا یک آیتم سبد از پرداخت کیف پول مستثنی است؟
+     * (فقط در حالت سقف ثابت معنی دارد)
+     *
+     * @param WC_Order_Item|array $item آیتم سبد یا سفارش
+     * @return bool
+     */
+    private static function is_item_excluded($item) {
+        $product_id = 0;
+
+        if (is_a($item, 'WC_Order_Item_Product')) {
+            $product_id = $item->get_product_id();
+        } elseif (is_array($item) && isset($item['product_id'])) {
+            $product_id = (int) $item['product_id'];
+        } elseif (is_a($item, 'WC_Product')) {
+            $product_id = $item->get_id();
+        } elseif (is_object($item) && method_exists($item, 'get_product_id')) {
+            $product_id = $item->get_product_id();
+        }
+
+        if (!$product_id) return false;
+
+        // بررسی لیست محصولات مستثنی (شامل والد واریشن)
+        $parent_id = wp_get_post_parent_id($product_id) ?: $product_id;
+        $check_ids = array_unique([$product_id, $parent_id]);
+
+        $excluded_products = Carno_Wallet_Settings::get_max_excluded_products();
+        if (!empty(array_intersect($check_ids, $excluded_products))) {
+            return true;
+        }
+
+        // بررسی دسته‌بندی‌های مستثنی
+        $excluded_categories = Carno_Wallet_Settings::get_max_excluded_categories();
+        if (!empty($excluded_categories)) {
+            $terms = wp_get_post_terms($product_id, 'product_cat', ['fields' => 'ids']);
+            if (!is_wp_error($terms) && !empty(array_intersect($terms, $excluded_categories))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * محاسبه «مبلغ قابل‌پوشش از کیف پول» در سبد خرید
+     * مجموع قیمت آیتم‌های غیرمستثنی (تضمین‌شده برای نمایش اعمال کیف پول روی محصولات عادی)
+     *
+     * @param WC_Cart $cart
+     * @return float
+     */
+    private static function calculate_coverable_subtotal_cart($cart) {
+        $coverable = 0.0;
+
+        foreach ($cart->get_cart_contents() as $item) {
+            if (self::is_item_excluded($item)) {
+                continue;
+            }
+            $line_total = isset($item['line_total']) ? floatval($item['line_total']) : 0;
+            if ($line_total > 0) {
+                $coverable += $line_total;
+            }
+        }
+
+        return $coverable;
+    }
+
+    /**
+     * محاسبه مبلغ نهایی قابل کسر از کیف پول برای سبد خرید
+     *
+     * - حالت درصدی: min(موجودی, subtotal × درصد)  ← رفتار قدیمی، استثناها اعمال نمی‌شوند
+     * - حالت ثابت: min(موجودی, سقف ثابت, مبلغ قابل‌پوشش)
+     *
+     * @param WC_Cart $cart
+     * @param float   $balance موجودی کاربر
+     * @return float مبلغ قابل کسر (>= 0)
+     */
+    public static function calculate_wallet_deduct_amount($cart, $balance) {
+        if ($balance <= 0) return 0.0;
+
+        $mode = Carno_Wallet_Settings::get_max_mode();
+
+        if ($mode === 'fixed') {
+            $fixed_cap = Carno_Wallet_Settings::get_max_fixed_amount();
+            if ($fixed_cap <= 0) {
+                // سقف ثابت صفر = بدون محدودیت خاص؛ کل قابل‌پوشش
+                $max_from_wallet = self::calculate_coverable_subtotal_cart($cart);
+            } else {
+                $coverable       = self::calculate_coverable_subtotal_cart($cart);
+                $max_from_wallet = min($fixed_cap, $coverable);
+            }
+        } else {
+            // حالت درصدی (رفتار قدیمی)
+            $cart_subtotal   = floatval($cart->get_subtotal());
+            $max_from_wallet = floor($cart_subtotal * Carno_Wallet_Settings::get_max_ratio());
+        }
+
+        if ($max_from_wallet <= 0) return 0.0;
+
+        return min(floatval($balance), $max_from_wallet);
+    }
+
     // ─── اعمال خصم به سبد خرید ──────────────────────────────────
 
     /**
@@ -40,25 +143,18 @@ class Carno_Wallet_Cart {
         if (is_admin() && !defined('DOING_AJAX')) return;
         if (!Carno_Wallet_Helpers::is_user_logged_in()) return;
 
-        $user_id = Carno_Wallet_Helpers::get_current_user_id();
-        $balance = Carno_Wallet_Helpers::get_user_balance($user_id);
-
-        if ($balance <= 0) return;
-
-        $cart_subtotal = WC()->cart->get_subtotal();
-        if ($cart_subtotal <= 0) return;
-
-        $max_from_wallet = floor($cart_subtotal * Carno_Wallet_Settings::get_max_ratio());
-        $deduct_amount   = min($balance, $max_from_wallet);
-        if ($deduct_amount <= 0) return;
-
         // بررسی اینکه fee قبلاً اضافه شده‌است
-        $cart_fees = WC()->cart->get_fees();
-        foreach ($cart_fees as $fee) {
+        foreach (WC()->cart->get_fees() as $fee) {
             if (strpos($fee->name, 'اعتبار کیف پول') !== false) {
                 return;
             }
         }
+
+        $user_id      = Carno_Wallet_Helpers::get_current_user_id();
+        $balance      = Carno_Wallet_Helpers::get_user_balance($user_id);
+        $deduct_amount = self::calculate_wallet_deduct_amount(WC()->cart, $balance);
+
+        if ($deduct_amount <= 0) return;
 
         WC()->cart->add_fee(
             sprintf(__('اعتبار کیف پول: -%s تومان', 'carno-wallet'), number_format($deduct_amount)),
@@ -97,19 +193,16 @@ class Carno_Wallet_Cart {
         WC()->cart->calculate_totals();
 
         $deduct_amount = WC()->session->get('carno_wallet_deduct_amount');
-        
+
         if (!$deduct_amount || $deduct_amount <= 0) {
             $user_id = $order->get_user_id();
             $balance = Carno_Wallet_Helpers::get_user_balance($user_id);
-            $cart_subtotal = WC()->cart->get_subtotal();
-            
-            if ($balance > 0 && $cart_subtotal > 0) {
-                $max_from_wallet = floor($cart_subtotal * Carno_Wallet_Settings::get_max_ratio());
-                $deduct_amount   = min($balance, $max_from_wallet);
+            $deduct_amount = self::calculate_wallet_deduct_amount(WC()->cart, $balance);
+            if ($deduct_amount > 0) {
                 WC()->session->set('carno_wallet_deduct_amount', $deduct_amount);
             }
         }
-        
+
         if ($deduct_amount && $deduct_amount > 0) {
             $order->update_meta_data(CARNO_WALLET_ORDER_USED_KEY, true);
             $order->update_meta_data(CARNO_WALLET_ORDER_AMOUNT_KEY, floatval($deduct_amount));
