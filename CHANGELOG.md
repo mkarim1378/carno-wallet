@@ -2,6 +2,14 @@
 
 All notable changes to this plugin are documented in this file.
 
+## [1.9.0]
+
+### Changed
+- Cashback now applies to all customer-initiated orders (including gateway-only payments without wallet usage), not just orders that used wallet credit. Admin-created orders do not receive cashback.
+
+### Fixed
+- Excluded products and categories in the wallet usage limit settings could not be removed after being saved. Pre-selected options were rendered outside the `<select>` element instead of inside it.
+
 ## [1.8.1]
 
 ### Added

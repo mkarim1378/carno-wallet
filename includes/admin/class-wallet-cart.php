@@ -188,6 +188,8 @@ class Carno_Wallet_Cart {
      * ذخیره اطلاعات کیف پول در سفارش
      */
     public function save_wallet_to_order($order) {
+        $order->update_meta_data(CARNO_WALLET_ORDER_CUSTOMER_CHECKOUT_KEY, true);
+
         if (!Carno_Wallet_Helpers::is_user_logged_in()) return;
 
         WC()->cart->calculate_totals();
@@ -283,40 +285,43 @@ class Carno_Wallet_Cart {
         if (!in_array($new_status, Carno_Wallet_Settings::get_deduction_statuses(), true)) return;
 
         $order = wc_get_order($order_id);
-
-        if ($order->get_meta(CARNO_WALLET_ORDER_DEDUCTED_KEY, true)) return;
-
-        $wallet_amount = $order->get_meta(CARNO_WALLET_ORDER_AMOUNT_KEY, true);
-        if (!$wallet_amount || $wallet_amount <= 0) return;
-
         $user_id = $order->get_user_id();
         if (!$user_id) return;
 
-        $current_balance = Carno_Wallet_Helpers::get_user_balance($user_id);
+        // ── کسر کیف پول (فقط سفارشاتی که کیف پول استفاده کرده‌اند) ──
+        if (!$order->get_meta(CARNO_WALLET_ORDER_DEDUCTED_KEY, true)) {
+            $wallet_amount = $order->get_meta(CARNO_WALLET_ORDER_AMOUNT_KEY, true);
+            if ($wallet_amount && $wallet_amount > 0) {
+                $current_balance = Carno_Wallet_Helpers::get_user_balance($user_id);
 
-        if ($current_balance < $wallet_amount) {
-            $order->add_order_note(
-                sprintf('⚠️ تلاش برای کم‌کردن %s، اما تنها %s موجود است.',
-                    Carno_Wallet_Helpers::format_currency($wallet_amount),
-                    Carno_Wallet_Helpers::format_currency($current_balance)
-                )
-            );
-            return;
+                if ($current_balance < $wallet_amount) {
+                    $order->add_order_note(
+                        sprintf('⚠️ تلاش برای کم‌کردن %s، اما تنها %s موجود است.',
+                            Carno_Wallet_Helpers::format_currency($wallet_amount),
+                            Carno_Wallet_Helpers::format_currency($current_balance)
+                        )
+                    );
+                } else {
+                    Carno_Wallet_Helpers::deduct_balance($user_id, $wallet_amount, 'purchase', 'کسر بهای سفارش از کیف پول', $order_id);
+                    $order->update_meta_data(CARNO_WALLET_ORDER_DEDUCTED_KEY, true);
+
+                    $new_balance = Carno_Wallet_Helpers::get_user_balance($user_id);
+                    $order->add_order_note(
+                        sprintf('✅ موجودی کیف پول کاهش یافت: %s | موجودی جدید: %s',
+                            Carno_Wallet_Helpers::format_currency($wallet_amount),
+                            Carno_Wallet_Helpers::format_currency($new_balance)
+                        )
+                    );
+                }
+            }
         }
 
-        Carno_Wallet_Helpers::deduct_balance($user_id, $wallet_amount, 'purchase', 'کسر بهای سفارش از کیف پول', $order_id);
-        $order->update_meta_data(CARNO_WALLET_ORDER_DEDUCTED_KEY, true);
-
-        $new_balance = Carno_Wallet_Helpers::get_user_balance($user_id);
-        $order->add_order_note(
-            sprintf('✅ موجودی کیف پول کاهش یافت: %s | موجودی جدید: %s',
-                Carno_Wallet_Helpers::format_currency($wallet_amount),
-                Carno_Wallet_Helpers::format_currency($new_balance)
-            )
-        );
-
-        // کش‌بک: درصدی از مبلغ سبد خرید به کیف پول اضافه می‌شود (یک‌بار)
-        if (Carno_Wallet_Settings::is_cashback_enabled() && !$order->get_meta(CARNO_WALLET_ORDER_CASHBACK_KEY, true)) {
+        // ── کش‌بک: برای تمام سفارشات خرید مشتری (صرفاً سفارشات مشتری، نه سفارشات ادمین) ──
+        if (
+            Carno_Wallet_Settings::is_cashback_enabled()
+            && $order->get_meta(CARNO_WALLET_ORDER_CUSTOMER_CHECKOUT_KEY, true)
+            && !$order->get_meta(CARNO_WALLET_ORDER_CASHBACK_KEY, true)
+        ) {
             $subtotal        = floatval($order->get_subtotal());
             $cashback_amount = floor($subtotal * Carno_Wallet_Settings::get_cashback_ratio());
 
@@ -347,7 +352,6 @@ class Carno_Wallet_Cart {
                     );
                 }
 
-                // ارسال آسینک پیامک اطلاع‌رسانی کش‌بک (در صورت فعال‌بودن در تنظیمات)
                 if ($actual_added > 0 && Carno_Wallet_Settings::is_cashback_sms_enabled() && function_exists('as_schedule_single_action')) {
                     as_schedule_single_action(time(), 'carno_wallet_send_cashback_sms', [
                         'user_id'       => $user_id,

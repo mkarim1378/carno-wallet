@@ -32,9 +32,6 @@ wp-config.php
 # Log files
 *.log
 
-# htaccess
-/.htaccess
-
 # All plugins
 #
 # Note: If you wish to whitelist plugins,
@@ -49,7 +46,6 @@ wp-config.php
 
 # External test plugin (not part of wallet plugin)
 /carno-plugin.php
-/.claude
 /.*
 *.zip
 
