@@ -191,7 +191,7 @@ class Carno_Wallet_Settings {
             foreach ($products as $pid) {
                 $p = wc_get_product($pid);
                 if ($p) {
-                    printf('<option value="%d" selected="selected">#%d — %s</option>', $pid, $pid, esc_html(wp_strip_all_tags($p->get_formatted_name())));
+                    $selected_products .= sprintf('<option value="%d" selected="selected">#%d — %s</option>', $pid, $pid, esc_html(wp_strip_all_tags($p->get_formatted_name())));
                 }
             }
         }
@@ -208,7 +208,7 @@ class Carno_Wallet_Settings {
             foreach ($categories as $cid) {
                 $term = get_term($cid, 'product_cat');
                 if ($term && !is_wp_error($term)) {
-                    printf('<option value="%d" selected="selected">%s</option>', $cid, esc_html($term->name));
+                    $selected_categories .= sprintf('<option value="%d" selected="selected">%s</option>', $cid, esc_html($term->name));
                 }
             }
         }
